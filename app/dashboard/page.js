@@ -20,7 +20,7 @@ export default function Dashboard() {
       setUser(user)
       const { data } = await supabase
         .from('user_products')
-        .select('id, status, products(id, name, description, type, access_url)')
+        .select('id, status, products(id, name, description, type, access_url, thumbnail_url)')
         .eq('user_id', user.id)
       if (data) setProducts(data.filter(x => x.status === 'active'))
       setLoading(false)
@@ -44,9 +44,10 @@ export default function Dashboard() {
 
   function sendMessage() {
     if (!input.trim()) return
-    const userMsg = {type:'user', text:input}
-    const botMsg = {type:'bot', text:'Entendido! Para mais detalhes entre em contato pelo suporte@oraclepro.com 😊'}
-    setMessages(prev => [...prev, userMsg, botMsg])
+    setMessages(prev => [...prev,
+      {type:'user', text:input},
+      {type:'bot', text:'Entendido! Para mais detalhes entre em contato pelo suporte@oraclepro.com 😊'}
+    ])
     setInput('')
   }
 
@@ -145,21 +146,29 @@ export default function Dashboard() {
                         style={{width:'200px',borderRadius:'10px',overflow:'hidden',cursor:'pointer',background:'#111',border:'1px solid #1e1e1e',transition:'transform .2s,box-shadow .2s'}}
                         onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-5px)';e.currentTarget.style.boxShadow='0 18px 45px rgba(0,0,0,.7)'}}
                         onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none'}}>
-                        <div style={{height:'267px',background:'linear-gradient(160deg,#0d0d0d,#1a1a1a)',position:'relative',display:'flex',alignItems:'flex-end',padding:'12px',overflow:'hidden'}}>
+                        <div style={{width:'200px',height:'267px',position:'relative',overflow:'hidden',display:'flex',alignItems:'flex-end',padding:'12px'}}>
+                          {/* IMAGEM DE CAPA */}
+                          {up.products?.thumbnail_url ? (
+                            <img src={up.products.thumbnail_url} alt={up.products.name}
+                              style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>
+                          ) : (
+                            <div style={{position:'absolute',inset:0,background:'linear-gradient(160deg,#0d0d0d,#1a1a1a)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'72px',opacity:.12}}>
+                              {categoryIcons[up.products?.type]||'📦'}
+                            </div>
+                          )}
                           <div style={{position:'absolute',inset:0,background:'linear-gradient(0deg,rgba(0,0,0,.9) 0%,transparent 60%)'}}></div>
-                          <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'72px',opacity:.12}}>{categoryIcons[up.products?.type]||'📦'}</div>
                           <div style={{position:'absolute',top:'10px',left:'10px',fontSize:'8px',fontWeight:'700',padding:'3px 8px',borderRadius:'4px',letterSpacing:'1px',background:`${color}22`,color:color,border:`1px solid ${color}44`,zIndex:2}}>
                             {categoryLabels[up.products?.type]?.split(' ')[0]||'Produto'}
                           </div>
                           <div style={{position:'relative',zIndex:2}}>
                             <div style={{fontSize:'11px',fontWeight:'600',lineHeight:1.3}}>{up.products?.name}</div>
-                            <div style={{fontSize:'9px',color:'#888',marginTop:'2px'}}>{up.products?.description}</div>
+                            <div style={{fontSize:'9px',color:'#aaa',marginTop:'2px'}}>{up.products?.description}</div>
                           </div>
                         </div>
                         <div style={{background:'#0f0f0f',padding:'9px 12px',display:'flex',alignItems:'center',justifyContent:'space-between',borderTop:'1px solid #1a1a1a'}}>
                           <span style={{fontSize:'8px',color:'#22d97a'}}>● Ativo</span>
                           <button style={{fontSize:'9px',fontWeight:'700',padding:'4px 10px',borderRadius:'4px',border:'none',cursor:'pointer',background:color,color:(color==='#f0a500'||color==='#22d97a'||color==='#00d4ff')?'#000':'#fff',letterSpacing:'.5px'}}>
-                            {up.products?.type==='curso'?'Acessar':up.products?.type==='ebook'?'Ler':up.products?.type==='saas'||up.products?.type==='whitelabel'||up.products?.type==='automacao'?'Acessar':'Ver'}
+                            {up.products?.type==='curso'?'Assistir':up.products?.type==='ebook'?'Ler':'Acessar'}
                           </button>
                         </div>
                       </div>
@@ -239,3 +248,8 @@ export default function Dashboard() {
     </div>
   )
 }
+```
+
+**Ctrl+S** para salvar e depois:
+```
+git add . && git commit -m "Dashboard com imagens de capa" && git push
