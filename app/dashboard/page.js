@@ -34,6 +34,14 @@ export default function Dashboard() {
     router.push('/login')
   }
 
+  function handleProductClick(up) {
+    const type = up.products?.type
+    const url = up.products?.access_url
+    if (type === 'curso') { router.push('/curso') }
+    else if (type === 'ebook') { router.push('/ebook') }
+    else if (url) { window.open(url, '_blank') }
+  }
+
   function sendMessage() {
     if (!input.trim()) return
     const userMsg = {type:'user', text:input}
@@ -75,12 +83,11 @@ export default function Dashboard() {
   return (
     <div style={{minHeight:'100vh',background:'#0a0a0a',fontFamily:'sans-serif',color:'#e8e8e8'}}>
 
-      {/* NAV */}
       <nav style={{background:'#0f0f0f',borderBottom:'1px solid #1e1e1e',padding:'0 32px',height:'52px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:200}}>
         <div style={{fontSize:'20px',fontWeight:'900',letterSpacing:'4px',background:'linear-gradient(90deg,#f0a500,#e05500)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>ORACLE PRO</div>
         <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
           <div onClick={() => setAgentOpen(!agentOpen)} style={{background:'linear-gradient(90deg,rgba(240,165,0,.12),rgba(224,85,0,.12))',border:'1px solid rgba(240,165,0,.3)',borderRadius:'6px',padding:'7px 14px',fontSize:'10px',fontWeight:'700',color:'#f0a500',display:'flex',alignItems:'center',gap:'7px',cursor:'pointer',letterSpacing:'1px'}}>
-            <div style={{width:'7px',height:'7px',borderRadius:'50%',background:'#22d97a',animation:'pulse 2s infinite'}}></div>
+            <div style={{width:'7px',height:'7px',borderRadius:'50%',background:'#22d97a'}}></div>
             Oracle IA
           </div>
           <span style={{fontSize:'11px',color:'#444'}}>{user?.email}</span>
@@ -90,7 +97,6 @@ export default function Dashboard() {
 
       <div style={{transition:'margin-right .35s',marginRight: agentOpen ? '380px' : '0'}}>
 
-        {/* BANNER */}
         <div style={{height:'300px',background:'linear-gradient(135deg,#0a0a0a,#1a0f00,#2a1800,#0a0a0a)',position:'relative',display:'flex',alignItems:'flex-end',overflow:'hidden'}}>
           <div style={{position:'absolute',inset:0,backgroundImage:'linear-gradient(rgba(240,165,0,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(240,165,0,.04) 1px,transparent 1px)',backgroundSize:'40px 40px'}}></div>
           <div style={{position:'absolute',width:'220px',height:'220px',borderRadius:'50%',filter:'blur(60px)',background:'rgba(240,165,0,.18)',top:'-60px',left:'4%'}}></div>
@@ -105,7 +111,7 @@ export default function Dashboard() {
               <span style={{background:'linear-gradient(90deg,#f0a500,#e05500)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>PRO</span>
             </div>
             <div style={{fontSize:'12px',color:'#666',marginTop:'14px'}}>{products.length} produtos liberados · Acesso total</div>
-            <button onClick={() => router.push('/dashboard')} style={{marginTop:'18px',background:'linear-gradient(90deg,#f0a500,#e05500)',color:'#000',fontSize:'11px',fontWeight:'700',padding:'10px 22px',borderRadius:'6px',border:'none',cursor:'pointer',letterSpacing:'1px',textTransform:'uppercase'}}>
+            <button style={{marginTop:'18px',background:'linear-gradient(90deg,#f0a500,#e05500)',color:'#000',fontSize:'11px',fontWeight:'700',padding:'10px 22px',borderRadius:'6px',border:'none',cursor:'pointer',letterSpacing:'1px',textTransform:'uppercase'}}>
               Acessar produtos ▶
             </button>
           </div>
@@ -115,7 +121,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* SEÇÕES */}
         <div style={{padding:'32px 36px 80px'}}>
           {sortedGroups.length === 0 ? (
             <div style={{textAlign:'center',padding:'80px 20px',color:'#444'}}>
@@ -136,11 +141,11 @@ export default function Dashboard() {
                   <div style={{display:'flex',gap:'16px',flexWrap:'wrap'}}>
                     {items.map(up => (
                       <div key={up.id}
-                        onClick={() => up.products?.access_url ? window.open(up.products.access_url,'_blank') : null}
+                        onClick={() => handleProductClick(up)}
                         style={{width:'200px',borderRadius:'10px',overflow:'hidden',cursor:'pointer',background:'#111',border:'1px solid #1e1e1e',transition:'transform .2s,box-shadow .2s'}}
                         onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-5px)';e.currentTarget.style.boxShadow='0 18px 45px rgba(0,0,0,.7)'}}
                         onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none'}}>
-                        <div style={{height:'267px',background:`linear-gradient(160deg,#0d0d0d,#1a1a1a)`,position:'relative',display:'flex',alignItems:'flex-end',padding:'12px',overflow:'hidden'}}>
+                        <div style={{height:'267px',background:'linear-gradient(160deg,#0d0d0d,#1a1a1a)',position:'relative',display:'flex',alignItems:'flex-end',padding:'12px',overflow:'hidden'}}>
                           <div style={{position:'absolute',inset:0,background:'linear-gradient(0deg,rgba(0,0,0,.9) 0%,transparent 60%)'}}></div>
                           <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'72px',opacity:.12}}>{categoryIcons[up.products?.type]||'📦'}</div>
                           <div style={{position:'absolute',top:'10px',left:'10px',fontSize:'8px',fontWeight:'700',padding:'3px 8px',borderRadius:'4px',letterSpacing:'1px',background:`${color}22`,color:color,border:`1px solid ${color}44`,zIndex:2}}>
@@ -153,7 +158,9 @@ export default function Dashboard() {
                         </div>
                         <div style={{background:'#0f0f0f',padding:'9px 12px',display:'flex',alignItems:'center',justifyContent:'space-between',borderTop:'1px solid #1a1a1a'}}>
                           <span style={{fontSize:'8px',color:'#22d97a'}}>● Ativo</span>
-                          <button style={{fontSize:'9px',fontWeight:'700',padding:'4px 10px',borderRadius:'4px',border:'none',cursor:'pointer',background:color,color:(color==='#f0a500'||color==='#22d97a'||color==='#00d4ff')?'#000':'#fff',letterSpacing:'.5px'}}>Acessar</button>
+                          <button style={{fontSize:'9px',fontWeight:'700',padding:'4px 10px',borderRadius:'4px',border:'none',cursor:'pointer',background:color,color:(color==='#f0a500'||color==='#22d97a'||color==='#00d4ff')?'#000':'#fff',letterSpacing:'.5px'}}>
+                            {up.products?.type==='curso'?'Acessar':up.products?.type==='ebook'?'Ler':up.products?.type==='saas'||up.products?.type==='whitelabel'||up.products?.type==='automacao'?'Acessar':'Ver'}
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -164,7 +171,6 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* FOOTER */}
         <div style={{background:'#0a0a0a',borderTop:'1px solid #181818',padding:'20px 36px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{fontSize:'14px',fontWeight:'900',letterSpacing:'3px',background:'linear-gradient(90deg,#f0a500,#e05500)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>ORACLE PRO</div>
           <div style={{fontSize:'9px',color:'#333',letterSpacing:'1px'}}>© 2025 Oracle Pro · Todos os direitos reservados</div>
@@ -177,7 +183,6 @@ export default function Dashboard() {
 
       </div>
 
-      {/* AGENTE IA FLUTUANTE */}
       {!agentOpen && (
         <div style={{position:'fixed',bottom:'28px',right:'28px',zIndex:300,display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'12px'}}>
           <div style={{background:'#161616',border:'1px solid rgba(240,165,0,.3)',borderRadius:'12px 12px 0 12px',padding:'12px 16px',fontSize:'11px',color:'#ccc',maxWidth:'220px',lineHeight:1.6}}>
@@ -192,7 +197,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* PAINEL AGENTE */}
       {agentOpen && (
         <div style={{position:'fixed',top:0,right:0,width:'380px',height:'100vh',background:'#0d0d0d',borderLeft:'1px solid #1e1e1e',zIndex:250,display:'flex',flexDirection:'column',boxShadow:'-8px 0 40px rgba(0,0,0,.6)'}}>
           <div style={{padding:'16px 20px',borderBottom:'1px solid #1e1e1e',display:'flex',alignItems:'center',justifyContent:'space-between',background:'#111',flexShrink:0}}>
@@ -219,14 +223,10 @@ export default function Dashboard() {
           </div>
           <div style={{padding:'12px 14px 16px',borderTop:'1px solid #1e1e1e',background:'#0f0f0f',flexShrink:0}}>
             <div style={{display:'flex',gap:'8px',alignItems:'flex-end'}}>
-              <textarea
-                value={input}
-                onChange={e => setInput(e.target.value)}
+              <textarea value={input} onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage() }}}
-                placeholder="Digite sua dúvida..."
-                rows={1}
-                style={{flex:1,background:'#161616',border:'1px solid #1e1e1e',borderRadius:'8px',padding:'10px 12px',fontSize:'12px',color:'#e8e8e8',resize:'none',fontFamily:'sans-serif',outline:'none',minHeight:'42px',maxHeight:'100px'}}
-              />
+                placeholder="Digite sua dúvida..." rows={1}
+                style={{flex:1,background:'#161616',border:'1px solid #1e1e1e',borderRadius:'8px',padding:'10px 12px',fontSize:'12px',color:'#e8e8e8',resize:'none',fontFamily:'sans-serif',outline:'none',minHeight:'42px',maxHeight:'100px'}}/>
               <button onClick={sendMessage} style={{width:'40px',height:'40px',borderRadius:'8px',background:'linear-gradient(135deg,#f0a500,#e05500)',border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0}}>
                 <svg width="16" height="16" fill="none" stroke="#000" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </button>
@@ -236,7 +236,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      <style>{`@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}`}</style>
     </div>
   )
 }
