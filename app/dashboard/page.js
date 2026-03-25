@@ -46,7 +46,7 @@ export default function Dashboard() {
     if (!input.trim()) return
     setMessages(prev => [...prev,
       {type:'user', text:input},
-      {type:'bot', text:'Entendido! Para mais detalhes entre em contato pelo suporte@oraclepro.com 😊'}
+      {type:'bot', text:'Entendido! Para mais detalhes entre em contato pelo suporte@oraclepro.com'}
     ])
     setInput('')
   }
@@ -96,7 +96,7 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      <div style={{transition:'margin-right .35s',marginRight: agentOpen ? '380px' : '0'}}>
+      <div style={{transition:'margin-right .35s',marginRight:agentOpen?'380px':'0'}}>
 
         <div style={{height:'300px',background:'linear-gradient(135deg,#0a0a0a,#1a0f00,#2a1800,#0a0a0a)',position:'relative',display:'flex',alignItems:'flex-end',overflow:'hidden'}}>
           <div style={{position:'absolute',inset:0,backgroundImage:'linear-gradient(rgba(240,165,0,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(240,165,0,.04) 1px,transparent 1px)',backgroundSize:'40px 40px'}}></div>
@@ -111,10 +111,7 @@ export default function Dashboard() {
               ORACLE<br/>
               <span style={{background:'linear-gradient(90deg,#f0a500,#e05500)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>PRO</span>
             </div>
-            <div style={{fontSize:'12px',color:'#666',marginTop:'14px'}}>{products.length} produtos liberados · Acesso total</div>
-            <button style={{marginTop:'18px',background:'linear-gradient(90deg,#f0a500,#e05500)',color:'#000',fontSize:'11px',fontWeight:'700',padding:'10px 22px',borderRadius:'6px',border:'none',cursor:'pointer',letterSpacing:'1px',textTransform:'uppercase'}}>
-              Acessar produtos ▶
-            </button>
+            <div style={{fontSize:'12px',color:'#666',marginTop:'14px'}}>{products.length} produtos liberados</div>
           </div>
           <div style={{position:'absolute',right:'44px',bottom:'44px',zIndex:2,display:'flex',gap:'32px'}}>
             <div><div style={{fontFamily:'monospace',fontSize:'28px',fontWeight:'900',color:'#f0a500'}}>{products.length}</div><div style={{fontSize:'8px',color:'#555',letterSpacing:'2px',textTransform:'uppercase',marginTop:'1px'}}>Produtos</div></div>
@@ -147,16 +144,11 @@ export default function Dashboard() {
                         onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-5px)';e.currentTarget.style.boxShadow='0 18px 45px rgba(0,0,0,.7)'}}
                         onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none'}}>
                         <div style={{width:'200px',height:'267px',position:'relative',overflow:'hidden',display:'flex',alignItems:'flex-end',padding:'12px'}}>
-                          {/* IMAGEM DE CAPA */}
-                          {up.products?.thumbnail_url ? (
-                            <img src={up.products.thumbnail_url} alt={up.products.name}
-                              style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>
-                          ) : (
-                            <div style={{position:'absolute',inset:0,background:'linear-gradient(160deg,#0d0d0d,#1a1a1a)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'72px',opacity:.12}}>
-                              {categoryIcons[up.products?.type]||'📦'}
-                            </div>
-                          )}
-                          <div style={{position:'absolute',inset:0,background:'linear-gradient(0deg,rgba(0,0,0,.9) 0%,transparent 60%)'}}></div>
+                          {up.products?.thumbnail_url
+                            ? <img src={up.products.thumbnail_url} alt={up.products.name} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>
+                            : <div style={{position:'absolute',inset:0,background:'linear-gradient(160deg,#0d0d0d,#1a1a1a)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'64px',opacity:.15}}>{categoryIcons[up.products?.type]||'📦'}</div>
+                          }
+                          <div style={{position:'absolute',inset:0,background:'linear-gradient(0deg,rgba(0,0,0,.85) 0%,transparent 55%)'}}></div>
                           <div style={{position:'absolute',top:'10px',left:'10px',fontSize:'8px',fontWeight:'700',padding:'3px 8px',borderRadius:'4px',letterSpacing:'1px',background:`${color}22`,color:color,border:`1px solid ${color}44`,zIndex:2}}>
                             {categoryLabels[up.products?.type]?.split(' ')[0]||'Produto'}
                           </div>
@@ -233,14 +225,14 @@ export default function Dashboard() {
           <div style={{padding:'12px 14px 16px',borderTop:'1px solid #1e1e1e',background:'#0f0f0f',flexShrink:0}}>
             <div style={{display:'flex',gap:'8px',alignItems:'flex-end'}}>
               <textarea value={input} onChange={e => setInput(e.target.value)}
-                onKeyDown={e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage() }}}
+                onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}}}
                 placeholder="Digite sua dúvida..." rows={1}
                 style={{flex:1,background:'#161616',border:'1px solid #1e1e1e',borderRadius:'8px',padding:'10px 12px',fontSize:'12px',color:'#e8e8e8',resize:'none',fontFamily:'sans-serif',outline:'none',minHeight:'42px',maxHeight:'100px'}}/>
               <button onClick={sendMessage} style={{width:'40px',height:'40px',borderRadius:'8px',background:'linear-gradient(135deg,#f0a500,#e05500)',border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0}}>
                 <svg width="16" height="16" fill="none" stroke="#000" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </button>
             </div>
-            <div style={{fontSize:'9px',color:'#2a2a2a',marginTop:'7px',textAlign:'center',letterSpacing:'.5px'}}>🔒 Conversa criptografada · Oracle Pro</div>
+            <div style={{fontSize:'9px',color:'#2a2a2a',marginTop:'7px',textAlign:'center'}}>🔒 Conversa criptografada · Oracle Pro</div>
           </div>
         </div>
       )}
@@ -250,6 +242,6 @@ export default function Dashboard() {
 }
 ```
 
-**Ctrl+S** para salvar e depois:
+**Ctrl+S** para salvar e depois no terminal:
 ```
-git add . && git commit -m "Dashboard com imagens de capa" && git push
+git add . && git commit -m "Dashboard com capas" && git push
