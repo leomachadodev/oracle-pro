@@ -83,7 +83,6 @@ export default function Dashboard() {
 
   return (
     <div style={{minHeight:'100vh',background:'#0a0a0a',fontFamily:'sans-serif',color:'#e8e8e8'}}>
-
       <nav style={{background:'#0f0f0f',borderBottom:'1px solid #1e1e1e',padding:'0 32px',height:'52px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:200}}>
         <div style={{fontSize:'20px',fontWeight:'900',letterSpacing:'4px',background:'linear-gradient(90deg,#f0a500,#e05500)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>ORACLE PRO</div>
         <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
@@ -95,9 +94,7 @@ export default function Dashboard() {
           <button onClick={handleLogout} style={{background:'transparent',border:'1px solid #333',borderRadius:'6px',padding:'6px 14px',fontSize:'10px',color:'#666',cursor:'pointer',letterSpacing:'1px'}}>SAIR</button>
         </div>
       </nav>
-
       <div style={{transition:'margin-right .35s',marginRight:agentOpen?'380px':'0'}}>
-
         <div style={{height:'300px',background:'linear-gradient(135deg,#0a0a0a,#1a0f00,#2a1800,#0a0a0a)',position:'relative',display:'flex',alignItems:'flex-end',overflow:'hidden'}}>
           <div style={{position:'absolute',inset:0,backgroundImage:'linear-gradient(rgba(240,165,0,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(240,165,0,.04) 1px,transparent 1px)',backgroundSize:'40px 40px'}}></div>
           <div style={{position:'absolute',width:'220px',height:'220px',borderRadius:'50%',filter:'blur(60px)',background:'rgba(240,165,0,.18)',top:'-60px',left:'4%'}}></div>
@@ -118,7 +115,6 @@ export default function Dashboard() {
             <div><div style={{fontFamily:'monospace',fontSize:'28px',fontWeight:'900',color:'#f0a500'}}>{sortedGroups.length}</div><div style={{fontSize:'8px',color:'#555',letterSpacing:'2px',textTransform:'uppercase',marginTop:'1px'}}>Categorias</div></div>
           </div>
         </div>
-
         <div style={{padding:'32px 36px 80px'}}>
           {sortedGroups.length === 0 ? (
             <div style={{textAlign:'center',padding:'80px 20px',color:'#444'}}>
@@ -171,7 +167,6 @@ export default function Dashboard() {
             })
           )}
         </div>
-
         <div style={{background:'#0a0a0a',borderTop:'1px solid #181818',padding:'20px 36px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{fontSize:'14px',fontWeight:'900',letterSpacing:'3px',background:'linear-gradient(90deg,#f0a500,#e05500)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>ORACLE PRO</div>
           <div style={{fontSize:'9px',color:'#333',letterSpacing:'1px'}}>© 2025 Oracle Pro · Todos os direitos reservados</div>
@@ -181,9 +176,7 @@ export default function Dashboard() {
             <span style={{fontSize:'9px',color:'#444',cursor:'pointer'}}>suporte@oraclepro.com</span>
           </div>
         </div>
-
       </div>
-
       {!agentOpen && (
         <div style={{position:'fixed',bottom:'28px',right:'28px',zIndex:300,display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'12px'}}>
           <div style={{background:'#161616',border:'1px solid rgba(240,165,0,.3)',borderRadius:'12px 12px 0 12px',padding:'12px 16px',fontSize:'11px',color:'#ccc',maxWidth:'220px',lineHeight:1.6}}>
@@ -197,7 +190,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-
       {agentOpen && (
         <div style={{position:'fixed',top:0,right:0,width:'380px',height:'100vh',background:'#0d0d0d',borderLeft:'1px solid #1e1e1e',zIndex:250,display:'flex',flexDirection:'column',boxShadow:'-8px 0 40px rgba(0,0,0,.6)'}}>
           <div style={{padding:'16px 20px',borderBottom:'1px solid #1e1e1e',display:'flex',alignItems:'center',justifyContent:'space-between',background:'#111',flexShrink:0}}>
@@ -236,12 +228,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-
     </div>
   )
 }
-```
-
-**Ctrl+S** para salvar e depois no terminal:
-```
-git add . && git commit -m "Dashboard com capas" && git push
