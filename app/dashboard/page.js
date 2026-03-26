@@ -18,6 +18,21 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       setUser(user)
+
+      try {
+        const ipRes = await fetch('https://ipapi.co/json/')
+        const ipData = await ipRes.json()
+        const sessionId = localStorage.getItem('oracle_session_id')
+        if (sessionId) {
+          await supabase.rpc('update_session_ip', {
+            p_session_id: sessionId,
+            p_ip: ipData.ip || 'desconhecido',
+            p_city: ipData.city || 'desconhecido',
+            p_country: ipData.country_name || 'desconhecido'
+          })
+        }
+      } catch(e) {}
+
       const { data } = await supabase
         .from('user_products')
         .select('id, status, products(id, name, description, type, access_url, thumbnail_url)')
@@ -30,6 +45,12 @@ export default function Dashboard() {
 
   async function handleLogout() {
     const supabase = createClient()
+    const sessionId = localStorage.getItem('oracle_session_id')
+    if (sessionId) {
+      await supabase.from('device_sessions').delete().eq('session_id', sessionId)
+      localStorage.removeItem('oracle_session_id')
+      localStorage.removeItem('oracle_user_id')
+    }
     await supabase.auth.signOut()
     router.push('/login')
   }
@@ -51,19 +72,9 @@ export default function Dashboard() {
     setInput('')
   }
 
-  const categoryColors = {
-    saas:'#00d4ff', curso:'#f0a500', whitelabel:'#b06aff',
-    ebook:'#22d97a', automacao:'#ff4560', bonus:'#e05500'
-  }
-  const categoryLabels = {
-    saas:'SaaS & Sistemas', curso:'Cursos & Treinamentos',
-    whitelabel:'White Label', ebook:'E-books & Materiais',
-    automacao:'Automações & Fluxos', bonus:'Bônus & Extras'
-  }
-  const categoryIcons = {
-    saas:'⚙️', curso:'🎯', whitelabel:'🏷️',
-    ebook:'📗', automacao:'⚡', bonus:'🎁'
-  }
+  const categoryColors = {saas:'#00d4ff',curso:'#f0a500',whitelabel:'#b06aff',ebook:'#22d97a',automacao:'#ff4560',bonus:'#e05500'}
+  const categoryLabels = {saas:'SaaS & Sistemas',curso:'Cursos & Treinamentos',whitelabel:'White Label',ebook:'E-books & Materiais',automacao:'Automações & Fluxos',bonus:'Bônus & Extras'}
+  const categoryIcons = {saas:'⚙️',curso:'🎯',whitelabel:'🏷️',ebook:'📗',automacao:'⚡',bonus:'🎁'}
   const categoryOrder = ['saas','curso','automacao','whitelabel','ebook','bonus']
 
   const grouped = products.reduce((acc, up) => {
@@ -87,13 +98,13 @@ export default function Dashboard() {
         <div style={{fontSize:'20px',fontWeight:'900',letterSpacing:'4px',background:'linear-gradient(90deg,#f0a500,#e05500)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>ORACLE PRO</div>
         <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
           <div onClick={() => setAgentOpen(!agentOpen)} style={{background:'linear-gradient(90deg,rgba(240,165,0,.12),rgba(224,85,0,.12))',border:'1px solid rgba(240,165,0,.3)',borderRadius:'6px',padding:'7px 14px',fontSize:'10px',fontWeight:'700',color:'#f0a500',display:'flex',alignItems:'center',gap:'7px',cursor:'pointer',letterSpacing:'1px'}}>
-            <div style={{width:'7px',height:'7px',borderRadius:'50%',background:'#22d97a'}}></div>
-            Oracle IA
+            <div style={{width:'7px',height:'7px',borderRadius:'50%',background:'#22d97a'}}></div>Oracle IA
           </div>
           <span style={{fontSize:'11px',color:'#444'}}>{user?.email}</span>
           <button onClick={handleLogout} style={{background:'transparent',border:'1px solid #333',borderRadius:'6px',padding:'6px 14px',fontSize:'10px',color:'#666',cursor:'pointer',letterSpacing:'1px'}}>SAIR</button>
         </div>
       </nav>
+
       <div style={{transition:'margin-right .35s',marginRight:agentOpen?'380px':'0'}}>
         <div style={{height:'300px',background:'linear-gradient(135deg,#0a0a0a,#1a0f00,#2a1800,#0a0a0a)',position:'relative',display:'flex',alignItems:'flex-end',overflow:'hidden'}}>
           <div style={{position:'absolute',inset:0,backgroundImage:'linear-gradient(rgba(240,165,0,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(240,165,0,.04) 1px,transparent 1px)',backgroundSize:'40px 40px'}}></div>
@@ -101,12 +112,10 @@ export default function Dashboard() {
           <div style={{position:'absolute',width:'180px',height:'180px',borderRadius:'50%',filter:'blur(60px)',background:'rgba(224,85,0,.14)',bottom:'-40px',right:'6%'}}></div>
           <div style={{position:'relative',zIndex:2,padding:'0 44px 44px'}}>
             <div style={{fontSize:'10px',letterSpacing:'4px',textTransform:'uppercase',color:'#f0a500',marginBottom:'10px',display:'flex',alignItems:'center',gap:'10px'}}>
-              <span style={{width:'28px',height:'1px',background:'#f0a500',display:'inline-block'}}></span>
-              Bem-vindo de volta
+              <span style={{width:'28px',height:'1px',background:'#f0a500',display:'inline-block'}}></span>Bem-vindo de volta
             </div>
             <div style={{fontSize:'58px',fontWeight:'900',lineHeight:.92,color:'#fff',textShadow:'0 4px 40px rgba(0,0,0,.9)'}}>
-              ORACLE<br/>
-              <span style={{background:'linear-gradient(90deg,#f0a500,#e05500)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>PRO</span>
+              ORACLE<br/><span style={{background:'linear-gradient(90deg,#f0a500,#e05500)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>PRO</span>
             </div>
             <div style={{fontSize:'12px',color:'#666',marginTop:'14px'}}>{products.length} produtos liberados</div>
           </div>
@@ -115,6 +124,7 @@ export default function Dashboard() {
             <div><div style={{fontFamily:'monospace',fontSize:'28px',fontWeight:'900',color:'#f0a500'}}>{sortedGroups.length}</div><div style={{fontSize:'8px',color:'#555',letterSpacing:'2px',textTransform:'uppercase',marginTop:'1px'}}>Categorias</div></div>
           </div>
         </div>
+
         <div style={{padding:'32px 36px 80px'}}>
           {sortedGroups.length === 0 ? (
             <div style={{textAlign:'center',padding:'80px 20px',color:'#444'}}>
@@ -167,6 +177,7 @@ export default function Dashboard() {
             })
           )}
         </div>
+
         <div style={{background:'#0a0a0a',borderTop:'1px solid #181818',padding:'20px 36px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{fontSize:'14px',fontWeight:'900',letterSpacing:'3px',background:'linear-gradient(90deg,#f0a500,#e05500)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>ORACLE PRO</div>
           <div style={{fontSize:'9px',color:'#333',letterSpacing:'1px'}}>© 2025 Oracle Pro · Todos os direitos reservados</div>
@@ -177,6 +188,7 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
       {!agentOpen && (
         <div style={{position:'fixed',bottom:'28px',right:'28px',zIndex:300,display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'12px'}}>
           <div style={{background:'#161616',border:'1px solid rgba(240,165,0,.3)',borderRadius:'12px 12px 0 12px',padding:'12px 16px',fontSize:'11px',color:'#ccc',maxWidth:'220px',lineHeight:1.6}}>
@@ -190,6 +202,7 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
       {agentOpen && (
         <div style={{position:'fixed',top:0,right:0,width:'380px',height:'100vh',background:'#0d0d0d',borderLeft:'1px solid #1e1e1e',zIndex:250,display:'flex',flexDirection:'column',boxShadow:'-8px 0 40px rgba(0,0,0,.6)'}}>
           <div style={{padding:'16px 20px',borderBottom:'1px solid #1e1e1e',display:'flex',alignItems:'center',justifyContent:'space-between',background:'#111',flexShrink:0}}>
@@ -198,8 +211,7 @@ export default function Dashboard() {
               <div>
                 <div style={{fontSize:'13px',fontWeight:'700'}}>Oracle IA</div>
                 <div style={{fontSize:'10px',color:'#22d97a',display:'flex',alignItems:'center',gap:'5px'}}>
-                  <span style={{width:'6px',height:'6px',borderRadius:'50%',background:'#22d97a',display:'inline-block'}}></span>
-                  Online agora
+                  <span style={{width:'6px',height:'6px',borderRadius:'50%',background:'#22d97a',display:'inline-block'}}></span>Online agora
                 </div>
               </div>
             </div>
