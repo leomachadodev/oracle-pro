@@ -20,15 +20,17 @@ export default function Dashboard() {
       setUser(user)
 
       try {
-        const ipRes = await fetch('https://ipapi.co/json/')
-        const ipData = await ipRes.json()
         const sessionId = localStorage.getItem('oracle_session_id')
         if (sessionId) {
+          const ipRes = await fetch('https://api.ipify.org?format=json')
+          const ipData = await ipRes.json()
+          const geoRes = await fetch(`https://ipapi.co/${ipData.ip}/json/`)
+          const geoData = await geoRes.json()
           await supabase.rpc('update_session_ip', {
             p_session_id: sessionId,
             p_ip: ipData.ip || 'desconhecido',
-            p_city: ipData.city || 'desconhecido',
-            p_country: ipData.country_name || 'desconhecido'
+            p_city: geoData.city || 'desconhecido',
+            p_country: geoData.country_name || 'desconhecido'
           })
         }
       } catch(e) {}
