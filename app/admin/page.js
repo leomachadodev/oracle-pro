@@ -16,7 +16,9 @@ export default function Admin() {
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState(null)
   const [ebookModules, setEbookModules] = useState([{title:'',files:[]}])
+  const [cursoModules, setCursoModules] = useState([{title:'',aulas:[{title:'',youtube:'',duration:'',files:[]}]}])
   const [expandedMember, setExpandedMember] = useState(null)
+  const [expandedCursoMod, setExpandedCursoMod] = useState(0)
   const fileRef = useRef(null)
   const router = useRouter()
 
@@ -76,6 +78,8 @@ export default function Admin() {
     setPreview(null)
     setEditProduct(null)
     setEbookModules([{title:'Módulo 1',files:[]}])
+    setCursoModules([{title:'Módulo 1',aulas:[{title:'Aula 1',youtube:'',duration:'',files:[]}]}])
+    setExpandedCursoMod(0)
     setShowForm(true)
   }
 
@@ -93,6 +97,12 @@ export default function Admin() {
     } else {
       setEbookModules([{title:'Módulo 1',files:[]}])
     }
+    if (prod.type==='curso'&&prod.metadata?.modules) {
+      setCursoModules(prod.metadata.modules)
+    } else {
+      setCursoModules([{title:'Módulo 1',aulas:[{title:'Aula 1',youtube:'',duration:'',files:[]}]}])
+    }
+    setExpandedCursoMod(0)
     setShowForm(true)
   }
 
@@ -131,16 +141,63 @@ export default function Admin() {
     showMsg(`${uploaded.length} arquivo(s) enviado(s)!`)
   }
 
-  function addEbookModule() {
-    setEbookModules(prev=>[...prev,{title:`Módulo ${prev.length+1}`,files:[]}])
+  async function handleCursoFileUpload(modIndex,aulaIndex,e) {
+    const files = Array.from(e.target.files)
+    if (!files.length) return
+    setUploading(true)
+    const supabase = createClient()
+    const uploaded = []
+    for (const file of files) {
+      const fileName = `${Date.now()}-${file.name}`
+      const { error } = await supabase.storage.from('ebooks').upload(fileName,file,{upsert:true})
+      if (!error) {
+        const { data: urlData } = supabase.storage.from('ebooks').getPublicUrl(fileName)
+        uploaded.push({name:file.name,url:urlData.publicUrl,size:(file.size/1024).toFixed(0)+'KB'})
+      }
+    }
+    setCursoModules(prev=>prev.map((mod,mi)=>
+      mi===modIndex ? {
+        ...mod,
+        aulas: mod.aulas.map((aula,ai)=>
+          ai===aulaIndex ? {...aula,files:[...(aula.files||[]),...uploaded]} : aula
+        )
+      } : mod
+    ))
+    setUploading(false)
+    showMsg(`${uploaded.length} arquivo(s) enviado(s)!`)
   }
 
-  function removeEbookModule(index) {
-    setEbookModules(prev=>prev.filter((_,i)=>i!==index))
+  function addCursoModulo() {
+    setCursoModules(prev=>[...prev,{title:`Módulo ${prev.length+1}`,aulas:[{title:'Aula 1',youtube:'',duration:'',files:[]}]}])
+    setExpandedCursoMod(cursoModules.length)
   }
 
-  function removeEbookFile(modIndex,fileIndex) {
-    setEbookModules(prev=>prev.map((mod,i)=>i===modIndex?{...mod,files:mod.files.filter((_,fi)=>fi!==fileIndex)}:mod))
+  function removeCursoModulo(mi) {
+    setCursoModules(prev=>prev.filter((_,i)=>i!==mi))
+  }
+
+  function addAula(mi) {
+    setCursoModules(prev=>prev.map((mod,i)=>
+      i===mi ? {...mod,aulas:[...mod.aulas,{title:`Aula ${mod.aulas.length+1}`,youtube:'',duration:'',files:[]}]} : mod
+    ))
+  }
+
+  function removeAula(mi,ai) {
+    setCursoModules(prev=>prev.map((mod,i)=>
+      i===mi ? {...mod,aulas:mod.aulas.filter((_,j)=>j!==ai)} : mod
+    ))
+  }
+
+  function updateAula(mi,ai,field,value) {
+    setCursoModules(prev=>prev.map((mod,i)=>
+      i===mi ? {...mod,aulas:mod.aulas.map((aula,j)=>j===ai?{...aula,[field]:value}:aula)} : mod
+    ))
+  }
+
+  function removeAulaFile(mi,ai,fi) {
+    setCursoModules(prev=>prev.map((mod,i)=>
+      i===mi ? {...mod,aulas:mod.aulas.map((aula,j)=>j===ai?{...aula,files:(aula.files||[]).filter((_,k)=>k!==fi)}:aula)} : mod
+    ))
   }
 
   async function handleSave() {
@@ -150,7 +207,8 @@ export default function Admin() {
       name:form.name,description:form.description,type:form.type,
       access_url:form.access_url,thumbnail_url:form.thumbnail_url,
       is_active:form.is_active,sort_order:parseInt(form.sort_order)||0,
-      metadata:form.type==='ebook'?{modules:ebookModules}:null
+      metadata: form.type==='ebook' ? {modules:ebookModules} :
+                form.type==='curso' ? {modules:cursoModules} : null
     }
     if (editProduct) {
       const { error } = await supabase.from('products').update(payload).eq('id',editProduct.id)
@@ -201,10 +259,10 @@ export default function Admin() {
   }
 
   async function forceLogout(userId) {
-    if (!confirm('Desconectar todos os dispositivos deste usuário?')) return
+    if (!confirm('Desconectar todos os dispositivos?')) return
     const supabase = createClient()
     await supabase.from('device_sessions').delete().eq('user_id',userId)
-    showMsg('Usuário desconectado de todos os dispositivos!')
+    showMsg('Usuário desconectado!')
     loadAll()
   }
 
@@ -238,7 +296,7 @@ export default function Admin() {
           {[
             {label:'Total Membros',value:members.length,color:s.blue},
             {label:'Membros Ativos',value:members.filter(m=>m.status==='active').length,color:s.green},
-            {label:'Dispositivos Online',value:members.reduce((acc,m)=>acc+(m.sessions?.length||0),0),color:s.accent},
+            {label:'Dispositivos',value:members.reduce((acc,m)=>acc+(m.sessions?.length||0),0),color:s.accent},
             {label:'Total Produtos',value:products.length,color:s.accent2},
           ].map((stat,i)=>(
             <div key={i} style={{background:s.card,border:`1px solid ${s.border}`,borderRadius:'10px',padding:'16px 20px'}}>
@@ -301,7 +359,7 @@ export default function Admin() {
         {/* MEMBROS */}
         {tab==='members' && (
           <div>
-            <input type="text" placeholder="🔍  Buscar por email ou nome..." value={search} onChange={e=>setSearch(e.target.value)}
+            <input type="text" placeholder="🔍  Buscar..." value={search} onChange={e=>setSearch(e.target.value)}
               style={{width:'100%',background:'#161616',border:`1px solid ${s.border}`,borderRadius:'6px',padding:'9px 14px',fontSize:'12px',color:s.text,outline:'none',fontFamily:'sans-serif',marginBottom:'16px'}}/>
             <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
               {members.filter(m=>m.email?.toLowerCase().includes(search.toLowerCase())||m.full_name?.toLowerCase().includes(search.toLowerCase())).map(member=>(
@@ -319,8 +377,8 @@ export default function Admin() {
                             <span style={{fontSize:'8px',padding:'2px 6px',borderRadius:'4px',background:member.role==='admin'?'rgba(255,69,96,.15)':'rgba(0,212,255,.15)',color:member.role==='admin'?s.red:s.blue,border:`1px solid ${member.role==='admin'?'rgba(255,69,96,.3)':'rgba(0,212,255,.3)'}`}}>{member.role?.toUpperCase()}</span>
                             <span style={{fontSize:'8px',padding:'2px 6px',borderRadius:'4px',background:member.status==='active'?'rgba(34,217,122,.15)':'rgba(255,69,96,.15)',color:member.status==='active'?s.green:s.red,border:`1px solid ${member.status==='active'?'rgba(34,217,122,.3)':'rgba(255,69,96,.3)'}`}}>{member.status?.toUpperCase()}</span>
                             <span style={{fontSize:'8px',color:s.muted}}>{member.access?.length||0} produtos</span>
-                            {member.sessions?.length > 0 && (
-                              <span style={{fontSize:'8px',padding:'2px 6px',borderRadius:'4px',background:'rgba(240,165,0,.15)',color:s.accent,border:'1px solid rgba(240,165,0,.3)',cursor:'pointer'}} onClick={()=>setExpandedMember(expandedMember===member.id?null:member.id)}>
+                            {member.sessions?.length>0&&(
+                              <span onClick={()=>setExpandedMember(expandedMember===member.id?null:member.id)} style={{fontSize:'8px',padding:'2px 6px',borderRadius:'4px',background:'rgba(240,165,0,.15)',color:s.accent,border:'1px solid rgba(240,165,0,.3)',cursor:'pointer'}}>
                                 🖥️ {member.sessions.length} dispositivo{member.sessions.length!==1?'s':''}
                               </span>
                             )}
@@ -328,47 +386,32 @@ export default function Admin() {
                         </div>
                       </div>
                       <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-                        <button onClick={()=>forceLogout(member.id)}
-                          style={{fontSize:'9px',fontWeight:'700',padding:'5px 12px',borderRadius:'5px',border:'none',cursor:'pointer',background:'rgba(0,212,255,.15)',color:s.blue,letterSpacing:'.5px'}}>
-                          🔌 Desconectar
-                        </button>
-                        <button onClick={()=>toggleStatus(member.id,member.status)}
-                          style={{fontSize:'9px',fontWeight:'700',padding:'5px 12px',borderRadius:'5px',border:'none',cursor:'pointer',background:member.status==='active'?'rgba(255,69,96,.2)':'rgba(34,217,122,.2)',color:member.status==='active'?s.red:s.green,letterSpacing:'.5px'}}>
+                        <button onClick={()=>forceLogout(member.id)} style={{fontSize:'9px',fontWeight:'700',padding:'5px 12px',borderRadius:'5px',border:'none',cursor:'pointer',background:'rgba(0,212,255,.15)',color:s.blue,letterSpacing:'.5px'}}>🔌 Desconectar</button>
+                        <button onClick={()=>toggleStatus(member.id,member.status)} style={{fontSize:'9px',fontWeight:'700',padding:'5px 12px',borderRadius:'5px',border:'none',cursor:'pointer',background:member.status==='active'?'rgba(255,69,96,.2)':'rgba(34,217,122,.2)',color:member.status==='active'?s.red:s.green,letterSpacing:'.5px'}}>
                           {member.status==='active'?'SUSPENDER':'REATIVAR'}
                         </button>
                       </div>
                     </div>
-
-                    {/* DISPOSITIVOS DO MEMBRO */}
-                    {expandedMember===member.id && member.sessions?.length > 0 && (
+                    {expandedMember===member.id&&member.sessions?.length>0&&(
                       <div style={{marginTop:'14px',paddingTop:'12px',borderTop:`1px solid ${s.border}`}}>
-                        <div style={{fontSize:'10px',color:s.muted,marginBottom:'8px',letterSpacing:'1px',textTransform:'uppercase'}}>Dispositivos conectados</div>
+                        <div style={{fontSize:'10px',color:s.muted,marginBottom:'8px',letterSpacing:'1px',textTransform:'uppercase'}}>Dispositivos</div>
                         <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
                           {member.sessions.map(session=>(
                             <div key={session.id} style={{display:'flex',alignItems:'center',gap:'10px',background:'#0d0d0d',borderRadius:'6px',padding:'10px 12px',border:`1px solid ${s.border}`}}>
                               <div style={{fontSize:'20px'}}>{session.device==='Mobile'?'📱':'💻'}</div>
                               <div style={{flex:1}}>
                                 <div style={{fontSize:'11px',fontWeight:'600'}}>{session.device} · {session.browser}</div>
-                                <div style={{fontSize:'9px',color:s.muted,marginTop:'2px'}}>
-                                  IP: {session.ip_address} · {session.city} {session.country}
-                                </div>
-                                <div style={{fontSize:'9px',color:s.muted,marginTop:'1px'}}>
-                                  Último acesso: {new Date(session.last_active).toLocaleString('pt-BR')}
-                                </div>
+                                <div style={{fontSize:'9px',color:s.muted,marginTop:'2px'}}>IP: {session.ip_address} · {session.city}</div>
+                                <div style={{fontSize:'9px',color:s.muted}}>{new Date(session.last_active).toLocaleString('pt-BR')}</div>
                               </div>
-                              <button onClick={()=>deleteSession(session.id)}
-                                style={{background:'rgba(255,69,96,.1)',border:'1px solid rgba(255,69,96,.3)',borderRadius:'5px',padding:'5px 8px',fontSize:'10px',color:s.red,cursor:'pointer'}}>
-                                🗑
-                              </button>
+                              <button onClick={()=>deleteSession(session.id)} style={{background:'rgba(255,69,96,.1)',border:'1px solid rgba(255,69,96,.3)',borderRadius:'5px',padding:'5px 8px',fontSize:'10px',color:s.red,cursor:'pointer'}}>🗑</button>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
-
-                    {/* PRODUTOS */}
                     <div style={{marginTop:'14px',paddingTop:'12px',borderTop:`1px solid ${s.border}`}}>
-                      <div style={{fontSize:'10px',color:s.muted,marginBottom:'8px',letterSpacing:'1px',textTransform:'uppercase'}}>Produtos — clique para liberar ou revogar</div>
+                      <div style={{fontSize:'10px',color:s.muted,marginBottom:'8px',letterSpacing:'1px',textTransform:'uppercase'}}>Produtos</div>
                       <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
                         {products.map(prod=>{
                           const hasAccess=member.access?.some(a=>a.product_id===prod.id)
@@ -391,7 +434,7 @@ export default function Admin() {
         {/* DISPOSITIVOS */}
         {tab==='sessions' && (
           <div>
-            <div style={{fontSize:'12px',color:s.muted,marginBottom:'16px'}}>Todos os dispositivos ativos na plataforma em tempo real.</div>
+            <div style={{fontSize:'12px',color:s.muted,marginBottom:'16px'}}>Todos os dispositivos ativos na plataforma.</div>
             <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
               {members.filter(m=>m.sessions?.length>0).map(member=>(
                 <div key={member.id} style={{background:s.card,border:`1px solid ${s.border}`,borderRadius:'10px',padding:'16px 20px'}}>
@@ -399,16 +442,11 @@ export default function Admin() {
                     <div style={{width:'32px',height:'32px',borderRadius:'50%',background:`linear-gradient(135deg,${s.accent},${s.accent2})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:'700',color:'#000'}}>
                       {member.email?.charAt(0).toUpperCase()}
                     </div>
-                    <div>
+                    <div style={{flex:1}}>
                       <div style={{fontSize:'12px',fontWeight:'600'}}>{member.email}</div>
-                      <div style={{fontSize:'9px',color:s.muted}}>{member.sessions.length} dispositivo{member.sessions.length!==1?'s':''} ativo{member.sessions.length!==1?'s':''}</div>
+                      <div style={{fontSize:'9px',color:s.muted}}>{member.sessions.length} dispositivo{member.sessions.length!==1?'s':''}</div>
                     </div>
-                    <div style={{marginLeft:'auto'}}>
-                      <button onClick={()=>forceLogout(member.id)}
-                        style={{fontSize:'9px',fontWeight:'700',padding:'5px 12px',borderRadius:'5px',border:'none',cursor:'pointer',background:'rgba(255,69,96,.15)',color:s.red,letterSpacing:'.5px'}}>
-                        🔌 Desconectar tudo
-                      </button>
-                    </div>
+                    <button onClick={()=>forceLogout(member.id)} style={{fontSize:'9px',fontWeight:'700',padding:'5px 12px',borderRadius:'5px',border:'none',cursor:'pointer',background:'rgba(255,69,96,.15)',color:s.red,letterSpacing:'.5px'}}>🔌 Desconectar tudo</button>
                   </div>
                   <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
                     {member.sessions.map(session=>(
@@ -416,68 +454,62 @@ export default function Admin() {
                         <div style={{fontSize:'18px'}}>{session.device==='Mobile'?'📱':'💻'}</div>
                         <div style={{flex:1}}>
                           <div style={{fontSize:'11px',fontWeight:'600'}}>{session.device} · {session.browser}</div>
-                          <div style={{fontSize:'9px',color:s.muted,marginTop:'2px'}}>
-                            IP: {session.ip_address} · {session.city}
-                          </div>
-                          <div style={{fontSize:'9px',color:s.muted,marginTop:'1px'}}>
-                            {new Date(session.last_active).toLocaleString('pt-BR')}
-                          </div>
+                          <div style={{fontSize:'9px',color:s.muted}}>IP: {session.ip_address} · {session.city}</div>
+                          <div style={{fontSize:'9px',color:s.muted}}>{new Date(session.last_active).toLocaleString('pt-BR')}</div>
                         </div>
-                        <div style={{width:'8px',height:'8px',borderRadius:'50%',background:s.green,animation:'pulse 2s infinite'}}></div>
-                        <button onClick={()=>deleteSession(session.id)}
-                          style={{background:'rgba(255,69,96,.1)',border:'1px solid rgba(255,69,96,.3)',borderRadius:'5px',padding:'5px 8px',fontSize:'10px',color:s.red,cursor:'pointer'}}>🗑</button>
+                        <div style={{width:'8px',height:'8px',borderRadius:'50%',background:s.green}}></div>
+                        <button onClick={()=>deleteSession(session.id)} style={{background:'rgba(255,69,96,.1)',border:'1px solid rgba(255,69,96,.3)',borderRadius:'5px',padding:'5px 8px',fontSize:'10px',color:s.red,cursor:'pointer'}}>🗑</button>
                       </div>
                     ))}
                   </div>
                 </div>
               ))}
-              {members.every(m=>!m.sessions?.length) && (
-                <div style={{textAlign:'center',padding:'60px',color:s.muted,fontSize:'12px'}}>
-                  Nenhum dispositivo ativo no momento.
-                </div>
+              {members.every(m=>!m.sessions?.length)&&(
+                <div style={{textAlign:'center',padding:'60px',color:s.muted,fontSize:'12px'}}>Nenhum dispositivo ativo.</div>
               )}
             </div>
           </div>
         )}
-
       </div>
 
-      {/* MODAL PRODUTO */}
+      {/* MODAL */}
       {showForm && (
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px'}}>
-          <div style={{background:'#111',border:`1px solid ${s.border}`,borderRadius:'14px',width:'100%',maxWidth:'560px',maxHeight:'90vh',overflowY:'auto',scrollbarWidth:'thin'}}>
+          <div style={{background:'#111',border:`1px solid ${s.border}`,borderRadius:'14px',width:'100%',maxWidth:'620px',maxHeight:'90vh',overflowY:'auto',scrollbarWidth:'thin'}}>
             <div style={{padding:'20px 24px',borderBottom:`1px solid ${s.border}`,display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,background:'#111',zIndex:2}}>
-              <div style={{fontSize:'15px',fontWeight:'700'}}>{editProduct?'✏️ Editar Produto':'➕ Novo Produto'}</div>
+              <div style={{fontSize:'15px',fontWeight:'700'}}>{editProduct?'✏️ Editar':'➕ Novo Produto'}</div>
               <div onClick={()=>setShowForm(false)} style={{cursor:'pointer',fontSize:'16px',color:s.muted,width:'28px',height:'28px',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:'6px',background:'#1a1a1a'}}>✕</div>
             </div>
             <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:'16px'}}>
 
+              {/* CAPA */}
               <div>
-                <div style={{fontSize:'11px',color:s.muted,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'8px'}}>Capa <span style={{color:'#444'}}>(300x400px ideal)</span></div>
+                <div style={{fontSize:'11px',color:s.muted,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'8px'}}>Capa</div>
                 <div onClick={()=>fileRef.current?.click()}
-                  style={{width:'100%',height:'180px',border:`2px dashed ${s.border}`,borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',overflow:'hidden',position:'relative',background:'#0d0d0d'}}
-                  onMouseEnter={e=>e.currentTarget.style.borderColor='#333'}
-                  onMouseLeave={e=>e.currentTarget.style.borderColor=s.border}>
+                  style={{width:'100%',height:'160px',border:`2px dashed ${s.border}`,borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',overflow:'hidden',position:'relative',background:'#0d0d0d'}}>
                   {preview
                     ? <><img src={preview} alt="preview" style={{width:'100%',height:'100%',objectFit:'cover'}}/><div style={{position:'absolute',bottom:'8px',right:'8px',background:'rgba(0,0,0,.7)',borderRadius:'4px',padding:'4px 8px',fontSize:'9px',color:'#fff'}}>Clique para trocar</div></>
-                    : <div style={{textAlign:'center',color:s.muted}}><div style={{fontSize:'32px',marginBottom:'8px'}}>🖼️</div><div style={{fontSize:'11px'}}>{uploading?'Enviando...':'Clique para upload'}</div><div style={{fontSize:'9px',marginTop:'4px',color:'#444'}}>JPG, PNG · máx 5MB</div></div>
+                    : <div style={{textAlign:'center',color:s.muted}}><div style={{fontSize:'28px',marginBottom:'6px'}}>🖼️</div><div style={{fontSize:'11px'}}>{uploading?'Enviando...':'Upload da capa'}</div></div>
                   }
                 </div>
                 <input ref={fileRef} type="file" accept="image/*" onChange={handleImageUpload} style={{display:'none'}}/>
               </div>
 
+              {/* NOME */}
               <div>
                 <div style={{fontSize:'11px',color:s.muted,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'6px'}}>Nome *</div>
                 <input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="Nome do produto"
                   style={{width:'100%',background:'#0d0d0d',border:`1px solid ${s.border}`,borderRadius:'7px',padding:'10px 12px',fontSize:'12px',color:s.text,outline:'none',fontFamily:'sans-serif'}}/>
               </div>
 
+              {/* DESCRIÇÃO */}
               <div>
                 <div style={{fontSize:'11px',color:s.muted,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'6px'}}>Descrição</div>
                 <textarea value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} placeholder="Breve descrição..." rows={2}
                   style={{width:'100%',background:'#0d0d0d',border:`1px solid ${s.border}`,borderRadius:'7px',padding:'10px 12px',fontSize:'12px',color:s.text,outline:'none',fontFamily:'sans-serif',resize:'none'}}/>
               </div>
 
+              {/* TIPO */}
               <div>
                 <div style={{fontSize:'11px',color:s.muted,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'8px'}}>Tipo</div>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'8px'}}>
@@ -490,26 +522,101 @@ export default function Admin() {
                 </div>
               </div>
 
-              {form.type !== 'ebook' && (
+              {/* URL (saas, wl, auto, bonus) */}
+              {!['curso','ebook'].includes(form.type) && (
                 <div>
-                  <div style={{fontSize:'11px',color:s.muted,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'6px'}}>
-                    {form.type==='curso'?'URL do Vídeo (YouTube embed)':'URL do Sistema'}
-                  </div>
-                  <input value={form.access_url} onChange={e=>setForm(p=>({...p,access_url:e.target.value}))}
-                    placeholder={form.type==='curso'?'https://youtube.com/embed/ID':'https://seu-sistema.com'}
+                  <div style={{fontSize:'11px',color:s.muted,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'6px'}}>URL do Sistema</div>
+                  <input value={form.access_url} onChange={e=>setForm(p=>({...p,access_url:e.target.value}))} placeholder="https://seu-sistema.com"
                     style={{width:'100%',background:'#0d0d0d',border:`1px solid ${s.border}`,borderRadius:'7px',padding:'10px 12px',fontSize:'12px',color:s.text,outline:'none',fontFamily:'sans-serif'}}/>
-                  <div style={{fontSize:'9px',color:'#444',marginTop:'4px'}}>
-                    {(form.type==='saas'||form.type==='whitelabel'||form.type==='automacao')&&'↗ Abrirá em nova aba'}
-                    {form.type==='curso'&&'📺 Use: youtube.com/embed/ID_DO_VIDEO'}
+                  <div style={{fontSize:'9px',color:'#444',marginTop:'4px'}}>↗ Abrirá em nova aba</div>
+                </div>
+              )}
+
+              {/* MÓDULOS DO CURSO */}
+              {form.type==='curso' && (
+                <div>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
+                    <div style={{fontSize:'11px',color:s.muted,letterSpacing:'1px',textTransform:'uppercase'}}>Módulos & Aulas</div>
+                    <button onClick={addCursoModulo} style={{background:`${s.accent}22`,border:`1px solid ${s.accent}44`,borderRadius:'5px',padding:'4px 12px',fontSize:'10px',color:s.accent,cursor:'pointer',fontFamily:'sans-serif'}}>+ Módulo</button>
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
+                    {cursoModules.map((mod,mi)=>(
+                      <div key={mi} style={{background:'#0d0d0d',border:`1px solid ${expandedCursoMod===mi?s.accent+'44':s.border}`,borderRadius:'8px',overflow:'hidden'}}>
+                        {/* HEADER DO MÓDULO */}
+                        <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 14px',cursor:'pointer',background:expandedCursoMod===mi?'rgba(240,165,0,.05)':'transparent'}}
+                          onClick={()=>setExpandedCursoMod(expandedCursoMod===mi?-1:mi)}>
+                          <span style={{fontSize:'9px',color:s.accent,fontWeight:'700',background:`${s.accent}22`,padding:'2px 7px',borderRadius:'4px'}}>MOD {mi+1}</span>
+                          <input value={mod.title} onChange={e=>{e.stopPropagation();setCursoModules(prev=>prev.map((m,i)=>i===mi?{...m,title:e.target.value}:m))}}
+                            onClick={e=>e.stopPropagation()}
+                            placeholder={`Módulo ${mi+1}`}
+                            style={{flex:1,background:'transparent',border:'none',fontSize:'12px',fontWeight:'600',color:s.text,outline:'none',fontFamily:'sans-serif'}}/>
+                          <span style={{fontSize:'10px',color:s.muted}}>{mod.aulas?.length||0} aulas</span>
+                          {cursoModules.length>1&&(
+                            <button onClick={e=>{e.stopPropagation();removeCursoModulo(mi)}} style={{background:'transparent',border:'none',color:s.red,cursor:'pointer',fontSize:'14px'}}>🗑</button>
+                          )}
+                          <span style={{color:s.muted,fontSize:'10px'}}>{expandedCursoMod===mi?'▲':'▼'}</span>
+                        </div>
+
+                        {/* AULAS DO MÓDULO */}
+                        {expandedCursoMod===mi && (
+                          <div style={{padding:'0 14px 14px'}}>
+                            <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
+                              {mod.aulas?.map((aula,ai)=>(
+                                <div key={ai} style={{background:'#111',border:`1px solid ${s.border}`,borderRadius:'7px',padding:'12px'}}>
+                                  <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'10px'}}>
+                                    <span style={{fontSize:'9px',color:s.muted,background:'#1a1a1a',padding:'2px 6px',borderRadius:'4px',flexShrink:0}}>AULA {ai+1}</span>
+                                    <input value={aula.title} onChange={e=>updateAula(mi,ai,'title',e.target.value)}
+                                      placeholder="Título da aula"
+                                      style={{flex:1,background:'#0d0d0d',border:`1px solid ${s.border}`,borderRadius:'5px',padding:'6px 10px',fontSize:'11px',color:s.text,outline:'none',fontFamily:'sans-serif'}}/>
+                                    <input value={aula.duration} onChange={e=>updateAula(mi,ai,'duration',e.target.value)}
+                                      placeholder="15min"
+                                      style={{width:'60px',background:'#0d0d0d',border:`1px solid ${s.border}`,borderRadius:'5px',padding:'6px 8px',fontSize:'11px',color:s.text,outline:'none',fontFamily:'sans-serif'}}/>
+                                    {mod.aulas.length>1&&(
+                                      <button onClick={()=>removeAula(mi,ai)} style={{background:'transparent',border:'none',color:s.red,cursor:'pointer',fontSize:'14px'}}>✕</button>
+                                    )}
+                                  </div>
+                                  <div style={{marginBottom:'8px'}}>
+                                    <div style={{fontSize:'9px',color:s.muted,marginBottom:'5px'}}>🎬 Link YouTube</div>
+                                    <input value={aula.youtube} onChange={e=>updateAula(mi,ai,'youtube',e.target.value)}
+                                      placeholder="https://youtube.com/embed/ID"
+                                      style={{width:'100%',background:'#0d0d0d',border:`1px solid ${s.border}`,borderRadius:'5px',padding:'7px 10px',fontSize:'11px',color:s.text,outline:'none',fontFamily:'sans-serif'}}/>
+                                  </div>
+                                  {/* ARQUIVOS DA AULA */}
+                                  <div>
+                                    <div style={{fontSize:'9px',color:s.muted,marginBottom:'5px'}}>📎 Materiais da aula</div>
+                                    {(aula.files||[]).map((file,fi)=>(
+                                      <div key={fi} style={{display:'flex',alignItems:'center',gap:'8px',background:'#0d0d0d',borderRadius:'4px',padding:'5px 8px',marginBottom:'4px'}}>
+                                        <span style={{fontSize:'12px'}}>📄</span>
+                                        <span style={{fontSize:'10px',flex:1,color:s.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{file.name}</span>
+                                        <span style={{fontSize:'9px',color:s.muted}}>{file.size}</span>
+                                        <button onClick={()=>removeAulaFile(mi,ai,fi)} style={{background:'transparent',border:'none',color:s.red,cursor:'pointer',fontSize:'11px'}}>✕</button>
+                                      </div>
+                                    ))}
+                                    <label style={{display:'flex',alignItems:'center',gap:'7px',background:'#0d0d0d',border:`1px dashed ${s.border}`,borderRadius:'5px',padding:'6px 10px',cursor:'pointer',fontSize:'10px',color:s.muted,marginTop:'4px'}}>
+                                      <input type="file" accept=".pdf,.doc,.docx,.zip" multiple onChange={e=>handleCursoFileUpload(mi,ai,e)} style={{display:'none'}}/>
+                                      📎 {uploading?'Enviando...':'Adicionar materiais'}
+                                    </label>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <button onClick={()=>addAula(mi)} style={{width:'100%',marginTop:'10px',background:`${s.green}15`,border:`1px dashed ${s.green}44`,borderRadius:'6px',padding:'8px',fontSize:'10px',color:s.green,cursor:'pointer',fontFamily:'sans-serif'}}>
+                              + Adicionar Aula
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
 
-              {form.type === 'ebook' && (
+              {/* MÓDULOS DO EBOOK */}
+              {form.type==='ebook' && (
                 <div>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
                     <div style={{fontSize:'11px',color:s.muted,letterSpacing:'1px',textTransform:'uppercase'}}>Módulos & Arquivos</div>
-                    <button onClick={addEbookModule} style={{background:`${s.green}22`,border:`1px solid ${s.green}44`,borderRadius:'5px',padding:'4px 12px',fontSize:'10px',color:s.green,cursor:'pointer',fontFamily:'sans-serif'}}>+ Módulo</button>
+                    <button onClick={()=>setEbookModules(prev=>[...prev,{title:`Módulo ${prev.length+1}`,files:[]}])} style={{background:`${s.green}22`,border:`1px solid ${s.green}44`,borderRadius:'5px',padding:'4px 12px',fontSize:'10px',color:s.green,cursor:'pointer',fontFamily:'sans-serif'}}>+ Módulo</button>
                   </div>
                   <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
                     {ebookModules.map((mod,mi)=>(
@@ -518,21 +625,19 @@ export default function Admin() {
                           <input value={mod.title} onChange={e=>setEbookModules(prev=>prev.map((m,i)=>i===mi?{...m,title:e.target.value}:m))}
                             placeholder={`Módulo ${mi+1}`}
                             style={{flex:1,background:'#161616',border:`1px solid ${s.border}`,borderRadius:'5px',padding:'7px 10px',fontSize:'11px',color:s.text,outline:'none',fontFamily:'sans-serif'}}/>
-                          {ebookModules.length>1&&<button onClick={()=>removeEbookModule(mi)} style={{background:'rgba(255,69,96,.1)',border:'1px solid rgba(255,69,96,.3)',borderRadius:'5px',padding:'6px 8px',fontSize:'11px',color:s.red,cursor:'pointer'}}>🗑</button>}
+                          {ebookModules.length>1&&<button onClick={()=>setEbookModules(prev=>prev.filter((_,i)=>i!==mi))} style={{background:'rgba(255,69,96,.1)',border:'1px solid rgba(255,69,96,.3)',borderRadius:'5px',padding:'6px 8px',fontSize:'11px',color:s.red,cursor:'pointer'}}>🗑</button>}
                         </div>
-                        <div style={{display:'flex',flexDirection:'column',gap:'6px',marginBottom:'8px'}}>
-                          {mod.files.map((file,fi)=>(
-                            <div key={fi} style={{display:'flex',alignItems:'center',gap:'8px',background:'#111',borderRadius:'5px',padding:'7px 10px',border:`1px solid ${s.border}`}}>
-                              <span style={{fontSize:'14px'}}>📄</span>
-                              <span style={{fontSize:'10px',flex:1,color:s.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{file.name}</span>
-                              <span style={{fontSize:'9px',color:s.muted}}>{file.size}</span>
-                              <button onClick={()=>removeEbookFile(mi,fi)} style={{background:'transparent',border:'none',color:s.red,cursor:'pointer',fontSize:'12px'}}>✕</button>
-                            </div>
-                          ))}
-                        </div>
+                        {mod.files?.map((file,fi)=>(
+                          <div key={fi} style={{display:'flex',alignItems:'center',gap:'8px',background:'#111',borderRadius:'5px',padding:'7px 10px',marginBottom:'6px',border:`1px solid ${s.border}`}}>
+                            <span style={{fontSize:'14px'}}>📄</span>
+                            <span style={{fontSize:'10px',flex:1,color:s.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{file.name}</span>
+                            <span style={{fontSize:'9px',color:s.muted}}>{file.size}</span>
+                            <button onClick={()=>setEbookModules(prev=>prev.map((m,i)=>i===mi?{...m,files:m.files.filter((_,j)=>j!==fi)}:m))} style={{background:'transparent',border:'none',color:s.red,cursor:'pointer',fontSize:'12px'}}>✕</button>
+                          </div>
+                        ))}
                         <label style={{display:'flex',alignItems:'center',gap:'7px',background:'#161616',border:`1px dashed ${s.border}`,borderRadius:'5px',padding:'8px 12px',cursor:'pointer',fontSize:'10px',color:s.muted}}>
                           <input type="file" accept=".pdf,.doc,.docx,.zip,.mp4,.mp3" multiple onChange={e=>handleEbookFileUpload(mi,e)} style={{display:'none'}}/>
-                          📎 {uploading?'Enviando...':'Adicionar arquivos (PDF, DOC, ZIP, MP4, MP3)'}
+                          📎 {uploading?'Enviando...':'Adicionar arquivos'}
                         </label>
                       </div>
                     ))}
@@ -540,6 +645,7 @@ export default function Admin() {
                 </div>
               )}
 
+              {/* ATIVO */}
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:'#0d0d0d',border:`1px solid ${s.border}`,borderRadius:'7px',padding:'12px 14px'}}>
                 <div>
                   <div style={{fontSize:'12px',fontWeight:'600'}}>Produto ativo</div>
@@ -555,10 +661,9 @@ export default function Admin() {
                 <button onClick={()=>setShowForm(false)} style={{flex:1,background:'#1a1a1a',border:`1px solid ${s.border}`,borderRadius:'7px',padding:'11px',fontSize:'12px',color:s.muted,cursor:'pointer',fontFamily:'sans-serif'}}>Cancelar</button>
                 <button onClick={handleSave} disabled={uploading}
                   style={{flex:2,background:`linear-gradient(90deg,${s.accent},${s.accent2})`,color:'#000',border:'none',borderRadius:'7px',padding:'11px',fontSize:'12px',fontWeight:'700',cursor:'pointer',fontFamily:'sans-serif',letterSpacing:'.5px'}}>
-                  {uploading?'Aguarde...':editProduct?'Salvar Alterações':'Criar Produto'}
+                  {uploading?'Aguarde...':editProduct?'Salvar':'Criar Produto'}
                 </button>
               </div>
-
             </div>
           </div>
         </div>
