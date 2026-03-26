@@ -15,6 +15,7 @@ export default function Admin() {
   const [editProduct, setEditProduct] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState(null)
+  const [ebookModules, setEbookModules] = useState([{title:'',files:[]}])
   const fileRef = useRef(null)
   const router = useRouter()
 
@@ -68,6 +69,7 @@ export default function Admin() {
     setForm(emptyForm)
     setPreview(null)
     setEditProduct(null)
+    setEbookModules([{title:'Módulo 1',files:[]}])
     setShowForm(true)
   }
 
@@ -80,43 +82,80 @@ export default function Admin() {
     })
     setPreview(prod.thumbnail_url||null)
     setEditProduct(prod)
+    if (prod.type === 'ebook' && prod.metadata?.modules) {
+      setEbookModules(prod.metadata.modules)
+    } else {
+      setEbookModules([{title:'Módulo 1',files:[]}])
+    }
     setShowForm(true)
   }
 
   async function handleImageUpload(e) {
     const file = e.target.files[0]
     if (!file) return
-    if (file.size > 5*1024*1024) { showMsg('Imagem muito grande! Máximo 5MB.','error'); return }
+    if (file.size > 5*1024*1024) { showMsg('Máximo 5MB!','error'); return }
     setUploading(true)
     const supabase = createClient()
-    const ext = file.name.split('.').pop()
-    const fileName = `${Date.now()}.${ext}`
+    const fileName = `${Date.now()}.${file.name.split('.').pop()}`
     const { error } = await supabase.storage.from('products').upload(fileName, file, {upsert:true})
-    if (error) { showMsg('Erro ao fazer upload!','error'); setUploading(false); return }
+    if (error) { showMsg('Erro no upload!','error'); setUploading(false); return }
     const { data: urlData } = supabase.storage.from('products').getPublicUrl(fileName)
     setForm(prev=>({...prev,thumbnail_url:urlData.publicUrl}))
     setPreview(urlData.publicUrl)
     setUploading(false)
-    showMsg('Imagem enviada!')
+    showMsg('Capa enviada!')
+  }
+
+  async function handleEbookFileUpload(modIndex, e) {
+    const files = Array.from(e.target.files)
+    if (!files.length) return
+    setUploading(true)
+    const supabase = createClient()
+    const uploaded = []
+    for (const file of files) {
+      const fileName = `${Date.now()}-${file.name}`
+      const { error } = await supabase.storage.from('ebooks').upload(fileName, file, {upsert:true})
+      if (!error) {
+        const { data: urlData } = supabase.storage.from('ebooks').getPublicUrl(fileName)
+        uploaded.push({name:file.name, url:urlData.publicUrl, size: (file.size/1024).toFixed(0)+'KB'})
+      }
+    }
+    setEbookModules(prev => prev.map((mod, i) =>
+      i === modIndex ? {...mod, files:[...mod.files, ...uploaded]} : mod
+    ))
+    setUploading(false)
+    showMsg(`${uploaded.length} arquivo(s) enviado(s)!`)
+  }
+
+  function addEbookModule() {
+    setEbookModules(prev => [...prev, {title:`Módulo ${prev.length+1}`,files:[]}])
+  }
+
+  function removeEbookModule(index) {
+    setEbookModules(prev => prev.filter((_, i) => i !== index))
+  }
+
+  function removeEbookFile(modIndex, fileIndex) {
+    setEbookModules(prev => prev.map((mod, i) =>
+      i === modIndex ? {...mod, files: mod.files.filter((_, fi) => fi !== fileIndex)} : mod
+    ))
   }
 
   async function handleSave() {
     if (!form.name.trim()) { showMsg('Nome é obrigatório!','error'); return }
     const supabase = createClient()
+    const payload = {
+      name:form.name, description:form.description, type:form.type,
+      access_url:form.access_url, thumbnail_url:form.thumbnail_url,
+      is_active:form.is_active, sort_order:parseInt(form.sort_order)||0,
+      metadata: form.type === 'ebook' ? {modules: ebookModules} : null
+    }
     if (editProduct) {
-      const { error } = await supabase.from('products').update({
-        name:form.name,description:form.description,type:form.type,
-        access_url:form.access_url,thumbnail_url:form.thumbnail_url,
-        is_active:form.is_active,sort_order:parseInt(form.sort_order)||0
-      }).eq('id',editProduct.id)
+      const { error } = await supabase.from('products').update(payload).eq('id',editProduct.id)
       if (error) { showMsg('Erro: '+error.message,'error'); return }
       showMsg('Produto atualizado!')
     } else {
-      const { error } = await supabase.from('products').insert({
-        name:form.name,description:form.description,type:form.type,
-        access_url:form.access_url,thumbnail_url:form.thumbnail_url,
-        is_active:form.is_active,sort_order:parseInt(form.sort_order)||0
-      })
+      const { error } = await supabase.from('products').insert(payload)
       if (error) { showMsg('Erro: '+error.message,'error'); return }
       showMsg('Produto criado!')
     }
@@ -127,8 +166,7 @@ export default function Admin() {
   async function handleDelete(id) {
     if (!confirm('Deletar este produto?')) return
     const supabase = createClient()
-    const { error } = await supabase.from('products').delete().eq('id',id)
-    if (error) { showMsg('Erro: '+error.message,'error'); return }
+    await supabase.from('products').delete().eq('id',id)
     showMsg('Produto deletado!')
     loadAll()
   }
@@ -208,7 +246,6 @@ export default function Admin() {
           ))}
         </div>
 
-        {/* PRODUTOS */}
         {tab==='products' && (
           <div>
             <div style={{display:'flex',justifyContent:'flex-end',marginBottom:'20px'}}>
@@ -216,37 +253,25 @@ export default function Admin() {
                 + Novo Produto
               </button>
             </div>
-            {/* GRID CARDS — proporção poster 200x267 igual ao dashboard */}
             <div style={{display:'flex',gap:'16px',flexWrap:'wrap'}}>
               {products.map(prod=>(
                 <div key={prod.id} style={{width:'200px',borderRadius:'10px',overflow:'hidden',background:s.card,border:`1px solid ${s.border}`}}>
-                  {/* IMAGEM 200x267 proporção poster */}
                   <div style={{width:'200px',height:'267px',position:'relative',overflow:'hidden',background:'linear-gradient(160deg,#0d0d0d,#1a1a1a)',display:'flex',alignItems:'flex-end',padding:'12px'}}>
-                    {prod.thumbnail_url ? (
-                      <img src={prod.thumbnail_url} alt={prod.name} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>
-                    ) : (
-                      <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'64px',opacity:.2}}>
-                        {prod.type==='saas'?'⚙️':prod.type==='curso'?'🎯':prod.type==='ebook'?'📗':prod.type==='whitelabel'?'🏷️':prod.type==='automacao'?'⚡':'🎁'}
-                      </div>
-                    )}
-                    <div style={{position:'absolute',inset:0,background:'linear-gradient(0deg,rgba(0,0,0,.85) 0%,transparent 55%)'}}></div>
-                    <div style={{position:'absolute',top:'10px',left:'10px',fontSize:'8px',fontWeight:'700',padding:'3px 8px',borderRadius:'4px',background:`${typeColors[prod.type]||s.accent}22`,color:typeColors[prod.type]||s.accent,border:`1px solid ${typeColors[prod.type]||s.accent}44`,zIndex:2}}>
-                      {prod.type?.toUpperCase()}
-                    </div>
-                    <div style={{position:'absolute',top:'10px',right:'10px',fontSize:'8px',fontWeight:'700',padding:'3px 8px',borderRadius:'4px',background:prod.is_active?'rgba(34,217,122,.2)':'rgba(255,69,96,.2)',color:prod.is_active?s.green:s.red,zIndex:2}}>
-                      {prod.is_active?'ATIVO':'INATIVO'}
-                    </div>
+                    {prod.thumbnail_url
+                      ? <img src={prod.thumbnail_url} alt={prod.name} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>
+                      : <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'64px',opacity:.2}}>{prod.type==='saas'?'⚙️':prod.type==='curso'?'🎯':prod.type==='ebook'?'📗':prod.type==='whitelabel'?'🏷️':prod.type==='automacao'?'⚡':'🎁'}</div>
+                    }
+                    <div style={{position:'absolute',inset:0,background:'linear-gradient(0deg,rgba(0,0,0,.85),transparent 55%)'}}></div>
+                    <div style={{position:'absolute',top:'10px',left:'10px',fontSize:'8px',fontWeight:'700',padding:'3px 8px',borderRadius:'4px',background:`${typeColors[prod.type]||s.accent}22`,color:typeColors[prod.type]||s.accent,border:`1px solid ${typeColors[prod.type]||s.accent}44`,zIndex:2}}>{prod.type?.toUpperCase()}</div>
+                    <div style={{position:'absolute',top:'10px',right:'10px',fontSize:'8px',fontWeight:'700',padding:'3px 8px',borderRadius:'4px',background:prod.is_active?'rgba(34,217,122,.2)':'rgba(255,69,96,.2)',color:prod.is_active?s.green:s.red,zIndex:2}}>{prod.is_active?'ATIVO':'INATIVO'}</div>
                     <div style={{position:'relative',zIndex:2}}>
                       <div style={{fontSize:'11px',fontWeight:'600',lineHeight:1.3,color:'#fff'}}>{prod.name}</div>
                       <div style={{fontSize:'9px',color:'#888',marginTop:'2px'}}>{prod.description}</div>
                     </div>
                   </div>
-                  {/* AÇÕES */}
                   <div style={{padding:'8px 10px',background:'#0f0f0f',borderTop:`1px solid ${s.border}`,display:'flex',gap:'6px'}}>
                     <button onClick={()=>openEdit(prod)} style={{flex:1,background:'#1a1a1a',border:`1px solid ${s.border}`,borderRadius:'5px',padding:'6px',fontSize:'9px',color:s.text,cursor:'pointer',fontFamily:'sans-serif',fontWeight:'600'}}>✏️ Editar</button>
-                    <button onClick={()=>toggleActive(prod)} style={{flex:1,background:'#1a1a1a',border:`1px solid ${s.border}`,borderRadius:'5px',padding:'6px',fontSize:'9px',color:prod.is_active?s.red:s.green,cursor:'pointer',fontFamily:'sans-serif',fontWeight:'600'}}>
-                      {prod.is_active?'⏸':'▶'}
-                    </button>
+                    <button onClick={()=>toggleActive(prod)} style={{flex:1,background:'#1a1a1a',border:`1px solid ${s.border}`,borderRadius:'5px',padding:'6px',fontSize:'9px',color:prod.is_active?s.red:s.green,cursor:'pointer',fontFamily:'sans-serif',fontWeight:'600'}}>{prod.is_active?'⏸':'▶'}</button>
                     <button onClick={()=>handleDelete(prod.id)} style={{background:'rgba(255,69,96,.1)',border:'1px solid rgba(255,69,96,.3)',borderRadius:'5px',padding:'6px 8px',fontSize:'11px',color:s.red,cursor:'pointer'}}>🗑</button>
                   </div>
                 </div>
@@ -255,7 +280,6 @@ export default function Admin() {
           </div>
         )}
 
-        {/* MEMBROS */}
         {tab==='members' && (
           <div>
             <input type="text" placeholder="🔍  Buscar por email ou nome..." value={search} onChange={e=>setSearch(e.target.value)}
@@ -290,7 +314,7 @@ export default function Admin() {
                         const hasAccess=member.access?.some(a=>a.product_id===prod.id)
                         return (
                           <div key={prod.id} onClick={()=>hasAccess?revokeAccess(member.id,prod.id):grantAccess(member.id,prod.id)}
-                            style={{fontSize:'9px',fontWeight:'600',padding:'4px 10px',borderRadius:'5px',cursor:'pointer',transition:'all .15s',background:hasAccess?'rgba(34,217,122,.15)':'rgba(255,255,255,.05)',color:hasAccess?s.green:s.muted,border:`1px solid ${hasAccess?'rgba(34,217,122,.3)':'rgba(255,255,255,.1)'}`}}>
+                            style={{fontSize:'9px',fontWeight:'600',padding:'4px 10px',borderRadius:'5px',cursor:'pointer',background:hasAccess?'rgba(34,217,122,.15)':'rgba(255,255,255,.05)',color:hasAccess?s.green:s.muted,border:`1px solid ${hasAccess?'rgba(34,217,122,.3)':'rgba(255,255,255,.1)'}`}}>
                             {hasAccess?'✓':'+' } {prod.name}
                           </div>
                         )
@@ -304,35 +328,26 @@ export default function Admin() {
         )}
       </div>
 
-      {/* MODAL */}
       {showForm && (
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px'}}>
-          <div style={{background:'#111',border:`1px solid ${s.border}`,borderRadius:'14px',width:'100%',maxWidth:'520px',maxHeight:'90vh',overflowY:'auto',scrollbarWidth:'thin'}}>
+          <div style={{background:'#111',border:`1px solid ${s.border}`,borderRadius:'14px',width:'100%',maxWidth:'560px',maxHeight:'90vh',overflowY:'auto',scrollbarWidth:'thin'}}>
             <div style={{padding:'20px 24px',borderBottom:`1px solid ${s.border}`,display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,background:'#111',zIndex:2}}>
               <div style={{fontSize:'15px',fontWeight:'700'}}>{editProduct?'✏️ Editar Produto':'➕ Novo Produto'}</div>
               <div onClick={()=>setShowForm(false)} style={{cursor:'pointer',fontSize:'16px',color:s.muted,width:'28px',height:'28px',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:'6px',background:'#1a1a1a'}}>✕</div>
             </div>
             <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:'16px'}}>
 
-              {/* UPLOAD CAPA */}
+              {/* CAPA */}
               <div>
-                <div style={{fontSize:'11px',color:s.muted,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'8px'}}>Capa do Produto <span style={{color:'#444'}}>(300x400px recomendado)</span></div>
+                <div style={{fontSize:'11px',color:s.muted,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'8px'}}>Capa <span style={{color:'#444'}}>(300x400px ideal)</span></div>
                 <div onClick={()=>fileRef.current?.click()}
-                  style={{width:'100%',height:'200px',border:`2px dashed ${s.border}`,borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',overflow:'hidden',position:'relative',background:'#0d0d0d'}}
+                  style={{width:'100%',height:'180px',border:`2px dashed ${s.border}`,borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',overflow:'hidden',position:'relative',background:'#0d0d0d'}}
                   onMouseEnter={e=>e.currentTarget.style.borderColor='#333'}
                   onMouseLeave={e=>e.currentTarget.style.borderColor=s.border}>
-                  {preview ? (
-                    <>
-                      <img src={preview} alt="preview" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                      <div style={{position:'absolute',bottom:'8px',right:'8px',background:'rgba(0,0,0,.7)',borderRadius:'4px',padding:'4px 8px',fontSize:'9px',color:'#fff'}}>Clique para trocar</div>
-                    </>
-                  ) : (
-                    <div style={{textAlign:'center',color:s.muted}}>
-                      <div style={{fontSize:'36px',marginBottom:'10px'}}>🖼️</div>
-                      <div style={{fontSize:'12px',fontWeight:'600'}}>{uploading?'Enviando...':'Clique para fazer upload'}</div>
-                      <div style={{fontSize:'10px',marginTop:'6px',color:'#444'}}>JPG, PNG · máx 5MB · 300x400px ideal</div>
-                    </div>
-                  )}
+                  {preview
+                    ? <><img src={preview} alt="preview" style={{width:'100%',height:'100%',objectFit:'cover'}}/><div style={{position:'absolute',bottom:'8px',right:'8px',background:'rgba(0,0,0,.7)',borderRadius:'4px',padding:'4px 8px',fontSize:'9px',color:'#fff'}}>Clique para trocar</div></>
+                    : <div style={{textAlign:'center',color:s.muted}}><div style={{fontSize:'32px',marginBottom:'8px'}}>🖼️</div><div style={{fontSize:'11px'}}>{uploading?'Enviando...':'Clique para upload'}</div><div style={{fontSize:'9px',marginTop:'4px',color:'#444'}}>JPG, PNG · máx 5MB</div></div>
+                  }
                 </div>
                 <input ref={fileRef} type="file" accept="image/*" onChange={handleImageUpload} style={{display:'none'}}/>
               </div>
@@ -340,7 +355,7 @@ export default function Admin() {
               {/* NOME */}
               <div>
                 <div style={{fontSize:'11px',color:s.muted,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'6px'}}>Nome *</div>
-                <input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="Ex: Tráfego Pago 2025"
+                <input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="Ex: Copy Expert 2025"
                   style={{width:'100%',background:'#0d0d0d',border:`1px solid ${s.border}`,borderRadius:'7px',padding:'10px 12px',fontSize:'12px',color:s.text,outline:'none',fontFamily:'sans-serif'}}/>
               </div>
 
@@ -364,20 +379,60 @@ export default function Admin() {
                 </div>
               </div>
 
-              {/* URL */}
-              <div>
-                <div style={{fontSize:'11px',color:s.muted,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'6px'}}>
-                  {form.type==='curso'?'URL do Vídeo':form.type==='ebook'?'URL do PDF':'URL do Sistema'}
+              {/* URL (não ebook) */}
+              {form.type !== 'ebook' && (
+                <div>
+                  <div style={{fontSize:'11px',color:s.muted,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'6px'}}>
+                    {form.type==='curso'?'URL do Vídeo (YouTube embed)':'URL do Sistema'}
+                  </div>
+                  <input value={form.access_url} onChange={e=>setForm(p=>({...p,access_url:e.target.value}))}
+                    placeholder={form.type==='curso'?'https://youtube.com/embed/ID':'https://seu-sistema.com'}
+                    style={{width:'100%',background:'#0d0d0d',border:`1px solid ${s.border}`,borderRadius:'7px',padding:'10px 12px',fontSize:'12px',color:s.text,outline:'none',fontFamily:'sans-serif'}}/>
+                  <div style={{fontSize:'9px',color:'#444',marginTop:'4px'}}>
+                    {(form.type==='saas'||form.type==='whitelabel'||form.type==='automacao')&&'↗ Abrirá em nova aba'}
+                    {form.type==='curso'&&'📺 Use: youtube.com/embed/ID_DO_VIDEO'}
+                  </div>
                 </div>
-                <input value={form.access_url} onChange={e=>setForm(p=>({...p,access_url:e.target.value}))}
-                  placeholder={form.type==='saas'||form.type==='whitelabel'||form.type==='automacao'?'https://seu-sistema.com':form.type==='curso'?'https://youtube.com/embed/ID':'https://...'}
-                  style={{width:'100%',background:'#0d0d0d',border:`1px solid ${s.border}`,borderRadius:'7px',padding:'10px 12px',fontSize:'12px',color:s.text,outline:'none',fontFamily:'sans-serif'}}/>
-                <div style={{fontSize:'9px',color:'#444',marginTop:'4px'}}>
-                  {(form.type==='saas'||form.type==='whitelabel'||form.type==='automacao')&&'↗ Abrirá em nova aba'}
-                  {form.type==='curso'&&'📺 Use: youtube.com/embed/ID_DO_VIDEO'}
-                  {form.type==='ebook'&&'📗 Abrirá leitor inline'}
+              )}
+
+              {/* MÓDULOS DO EBOOK */}
+              {form.type === 'ebook' && (
+                <div>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
+                    <div style={{fontSize:'11px',color:s.muted,letterSpacing:'1px',textTransform:'uppercase'}}>Módulos & Arquivos</div>
+                    <button onClick={addEbookModule} style={{background:`${s.green}22`,border:`1px solid ${s.green}44`,borderRadius:'5px',padding:'4px 12px',fontSize:'10px',color:s.green,cursor:'pointer',fontFamily:'sans-serif'}}>+ Adicionar Módulo</button>
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+                    {ebookModules.map((mod, mi)=>(
+                      <div key={mi} style={{background:'#0d0d0d',border:`1px solid ${s.border}`,borderRadius:'8px',padding:'14px'}}>
+                        <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'10px'}}>
+                          <input value={mod.title} onChange={e=>setEbookModules(prev=>prev.map((m,i)=>i===mi?{...m,title:e.target.value}:m))}
+                            placeholder={`Módulo ${mi+1}`}
+                            style={{flex:1,background:'#161616',border:`1px solid ${s.border}`,borderRadius:'5px',padding:'7px 10px',fontSize:'11px',color:s.text,outline:'none',fontFamily:'sans-serif'}}/>
+                          {ebookModules.length > 1 && (
+                            <button onClick={()=>removeEbookModule(mi)} style={{background:'rgba(255,69,96,.1)',border:'1px solid rgba(255,69,96,.3)',borderRadius:'5px',padding:'6px 8px',fontSize:'11px',color:s.red,cursor:'pointer'}}>🗑</button>
+                          )}
+                        </div>
+                        {/* Arquivos do módulo */}
+                        <div style={{display:'flex',flexDirection:'column',gap:'6px',marginBottom:'8px'}}>
+                          {mod.files.map((file, fi)=>(
+                            <div key={fi} style={{display:'flex',alignItems:'center',gap:'8px',background:'#111',borderRadius:'5px',padding:'7px 10px',border:`1px solid ${s.border}`}}>
+                              <span style={{fontSize:'14px'}}>📄</span>
+                              <span style={{fontSize:'10px',flex:1,color:s.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{file.name}</span>
+                              <span style={{fontSize:'9px',color:s.muted}}>{file.size}</span>
+                              <button onClick={()=>removeEbookFile(mi,fi)} style={{background:'transparent',border:'none',color:s.red,cursor:'pointer',fontSize:'12px'}}>✕</button>
+                            </div>
+                          ))}
+                        </div>
+                        <label style={{display:'flex',alignItems:'center',gap:'7px',background:'#161616',border:`1px dashed ${s.border}`,borderRadius:'5px',padding:'8px 12px',cursor:'pointer',fontSize:'10px',color:s.muted}}>
+                          <input type="file" accept=".pdf,.doc,.docx,.zip,.mp4,.mp3" multiple onChange={e=>handleEbookFileUpload(mi,e)} style={{display:'none'}}/>
+                          📎 {uploading?'Enviando...':'Clique para adicionar arquivos (PDF, DOC, ZIP, MP4, MP3)'}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* ATIVO */}
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:'#0d0d0d',border:`1px solid ${s.border}`,borderRadius:'7px',padding:'12px 14px'}}>
@@ -399,6 +454,7 @@ export default function Admin() {
                   {uploading?'Aguarde...':editProduct?'Salvar Alterações':'Criar Produto'}
                 </button>
               </div>
+
             </div>
           </div>
         </div>
