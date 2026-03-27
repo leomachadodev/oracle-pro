@@ -18,7 +18,6 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       setUser(user)
-
       try {
         const sessionId = localStorage.getItem('oracle_session_id')
         if (sessionId) {
@@ -28,13 +27,12 @@ export default function Dashboard() {
           const geoData = await geoRes.json()
           await supabase.rpc('update_session_ip', {
             p_session_id: sessionId,
-            p_ip: ipData.ip || 'desconhecido',
-            p_city: geoData.city || 'desconhecido',
-            p_country: geoData.country_name || 'desconhecido'
+            p_ip: ipData.ip||'desconhecido',
+            p_city: geoData.city||'desconhecido',
+            p_country: geoData.country_name||'desconhecido'
           })
         }
       } catch(e) {}
-
       const { data } = await supabase
         .from('user_products')
         .select('id, status, products(id, name, description, type, access_url, thumbnail_url)')
@@ -60,9 +58,18 @@ export default function Dashboard() {
   function handleProductClick(up) {
     const type = up.products?.type
     const url = up.products?.access_url
-    if (type === 'curso') { router.push('/curso') }
-    else if (type === 'ebook') { router.push('/ebook') }
-    else if (url) { window.open(url, '_blank') }
+    if (type === 'curso') {
+      localStorage.setItem('curso_product_id', up.products.id)
+      router.push('/curso')
+    } else if (type === 'ebook') {
+      localStorage.setItem('ebook_product_id', up.products.id)
+      router.push('/ebook')
+    } else if (type === 'whitelabel') {
+      localStorage.setItem('wl_product_id', up.products.id)
+      router.push('/whitelabel')
+    } else if (url) {
+      window.open(url, '_blank')
+    }
   }
 
   function sendMessage() {
@@ -168,7 +175,7 @@ export default function Dashboard() {
                         <div style={{background:'#0f0f0f',padding:'9px 12px',display:'flex',alignItems:'center',justifyContent:'space-between',borderTop:'1px solid #1a1a1a'}}>
                           <span style={{fontSize:'8px',color:'#22d97a'}}>● Ativo</span>
                           <button style={{fontSize:'9px',fontWeight:'700',padding:'4px 10px',borderRadius:'4px',border:'none',cursor:'pointer',background:color,color:(color==='#f0a500'||color==='#22d97a'||color==='#00d4ff')?'#000':'#fff',letterSpacing:'.5px'}}>
-                            {up.products?.type==='curso'?'Assistir':up.products?.type==='ebook'?'Ler':'Acessar'}
+                            {up.products?.type==='curso'?'Assistir':up.products?.type==='ebook'?'Ler':up.products?.type==='whitelabel'?'Acessar Kit':'Acessar'}
                           </button>
                         </div>
                       </div>
