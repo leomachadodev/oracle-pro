@@ -50,72 +50,24 @@ export default function Ebook() {
           <div style={{fontSize:'11px',color:'#666'}}>{product?.name}</div>
         </div>
         <div style={{fontSize:'18px',fontWeight:'900',letterSpacing:'4px',background:`linear-gradient(90deg,${s.accent},${s.accent2})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>ORACLE PRO</div>
-        <div style={{fontSize:'10px',color:s.muted}}>{progresso}% lido</div>
+        <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+          {fileAtual && (
+            <a href={fileAtual.url} target="_blank" rel="noreferrer"
+              style={{background:`linear-gradient(90deg,${s.accent},${s.accent2})`,color:'#000',borderRadius:'5px',padding:'6px 14px',fontSize:'10px',fontWeight:'700',textDecoration:'none',letterSpacing:'.5px'}}>
+              ⬇ Baixar
+            </a>
+          )}
+          <div style={{fontSize:'10px',color:s.muted}}>{progresso}% lido</div>
+        </div>
       </nav>
 
       <div style={{display:'flex',flex:1,overflow:'hidden'}}>
 
-        {/* VIEWER */}
-        <div style={{flex:1,background:'#1a1a1a',display:'flex',flexDirection:'column',overflow:'hidden'}}>
-          <div style={{background:'#0d0d0d',borderBottom:`1px solid ${s.border}`,padding:'10px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0,position:'sticky',top:0,zIndex:10}}>
-            <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
-              <button onClick={()=>{
-                if(capAtivo>0){setCapAtivo(c=>c-1)}
-                else if(modAtivo>0){setModAtivo(m=>m-1);setCapAtivo((modules[modAtivo-1]?.files?.length||1)-1)}
-              }} style={{background:'#1a1a1a',border:`1px solid ${s.border}`,borderRadius:'5px',padding:'5px 12px',fontSize:'10px',color:s.text,cursor:'pointer',fontFamily:'sans-serif'}}>⬅ Anterior</button>
-              <span style={{fontSize:'11px',color:s.muted}}>{modAtual.title} · {capAtivo+1}/{modAtual.files?.length||0}</span>
-              <button onClick={()=>{
-                if(capAtivo<(modAtual.files?.length||0)-1){setCapAtivo(c=>c+1)}
-                else if(modAtivo<modules.length-1){setModAtivo(m=>m+1);setCapAtivo(0)}
-              }} style={{background:'#1a1a1a',border:`1px solid ${s.border}`,borderRadius:'5px',padding:'5px 12px',fontSize:'10px',color:s.text,cursor:'pointer',fontFamily:'sans-serif'}}>Próximo ➡</button>
-            </div>
-            {fileAtual && (
-              <a href={fileAtual.url} target="_blank" rel="noreferrer"
-                style={{background:`linear-gradient(90deg,${s.accent},${s.accent2})`,color:'#000',border:'none',borderRadius:'5px',padding:'6px 14px',fontSize:'10px',fontWeight:'700',cursor:'pointer',textDecoration:'none',letterSpacing:'.5px'}}>
-                ⬇ Baixar arquivo
-              </a>
-            )}
-          </div>
-
-          <div style={{flex:1,overflowY:'auto',padding:'32px',display:'flex',justifyContent:'center',scrollbarWidth:'thin',scrollbarColor:'#222 transparent'}}>
-            {fileAtual ? (
-              <div style={{background:'#fff',width:'100%',maxWidth:'700px',minHeight:'600px',borderRadius:'8px',boxShadow:'0 8px 40px rgba(0,0,0,.6)',overflow:'hidden'}}>
-                {fileAtual.url?.match(/\.(pdf)$/i) ? (
-                  <iframe src={fileAtual.url} style={{width:'100%',height:'100%',minHeight:'800px',border:'none'}}/>
-                ) : fileAtual.url?.match(/\.(mp4|webm)$/i) ? (
-                  <video src={fileAtual.url} controls style={{width:'100%'}}/>
-                ) : fileAtual.url?.match(/\.(mp3|wav)$/i) ? (
-                  <div style={{padding:'40px',textAlign:'center'}}>
-                    <div style={{fontSize:'48px',marginBottom:'16px'}}>🎵</div>
-                    <div style={{fontSize:'14px',fontWeight:'600',color:'#111',marginBottom:'16px'}}>{fileAtual.name}</div>
-                    <audio src={fileAtual.url} controls style={{width:'100%'}}/>
-                  </div>
-                ) : (
-                  <div style={{padding:'60px',textAlign:'center'}}>
-                    <div style={{fontSize:'64px',marginBottom:'20px'}}>📄</div>
-                    <div style={{fontSize:'16px',fontWeight:'700',color:'#111',marginBottom:'8px'}}>{fileAtual.name}</div>
-                    <div style={{fontSize:'12px',color:'#888',marginBottom:'24px'}}>{fileAtual.size}</div>
-                    <a href={fileAtual.url} target="_blank" rel="noreferrer"
-                      style={{background:'#f0a500',color:'#000',padding:'12px 28px',borderRadius:'8px',textDecoration:'none',fontWeight:'700',fontSize:'13px'}}>
-                      ⬇ Baixar arquivo
-                    </a>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div style={{textAlign:'center',padding:'80px',color:s.muted,fontSize:'13px'}}>
-                <div style={{fontSize:'48px',marginBottom:'16px'}}>📭</div>
-                Nenhum arquivo neste módulo ainda.
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* SIDEBAR */}
-        <div style={{width:'260px',background:'#0d0d0d',borderLeft:`1px solid ${s.border}`,display:'flex',flexDirection:'column',flexShrink:0}}>
+        <div style={{width:'240px',background:'#0d0d0d',borderRight:`1px solid ${s.border}`,display:'flex',flexDirection:'column',flexShrink:0}}>
           <div style={{padding:'14px 16px',borderBottom:`1px solid ${s.border}`}}>
             <div style={{fontSize:'11px',fontWeight:'700',letterSpacing:'1px',textTransform:'uppercase'}}>Sumário</div>
-            <div style={{fontSize:'12px',color:s.green,marginTop:'4px',fontWeight:'600'}}>{product?.name}</div>
+            <div style={{fontSize:'12px',color:s.green,marginTop:'4px',fontWeight:'600',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{product?.name}</div>
             <div style={{display:'flex',alignItems:'center',gap:'8px',marginTop:'8px'}}>
               <div style={{flex:1,height:'3px',background:'#222',borderRadius:'2px',overflow:'hidden'}}>
                 <div style={{height:'100%',width:`${progresso}%`,background:s.green,borderRadius:'2px'}}></div>
@@ -128,7 +80,7 @@ export default function Ebook() {
             {modules.map((mod, mi) => (
               <div key={mi} style={{borderBottom:`1px solid ${s.border}`}}>
                 <div onClick={()=>{setModAtivo(mi);setCapAtivo(0)}}
-                  style={{padding:'10px 16px',cursor:'pointer',background:modAtivo===mi?'rgba(34,217,122,.06)':'transparent',borderLeft:`2px solid ${modAtivo===mi?s.green:'transparent'}`}}
+                  style={{padding:'10px 16px',cursor:'pointer',background:modAtivo===mi?'rgba(34,217,122,.08)':'transparent',borderLeft:`2px solid ${modAtivo===mi?s.green:'transparent'}`}}
                   onMouseEnter={e=>{if(modAtivo!==mi)e.currentTarget.style.background='#111'}}
                   onMouseLeave={e=>{if(modAtivo!==mi)e.currentTarget.style.background='transparent'}}>
                   <div style={{fontSize:'11px',fontWeight:'700',color:modAtivo===mi?s.green:s.text}}>{mod.title}</div>
@@ -136,11 +88,11 @@ export default function Ebook() {
                 </div>
                 {modAtivo===mi && mod.files?.map((file, fi) => (
                   <div key={fi} onClick={()=>setCapAtivo(fi)}
-                    style={{padding:'8px 16px 8px 28px',cursor:'pointer',display:'flex',alignItems:'center',gap:'8px',background:capAtivo===fi?'rgba(34,217,122,.1)':'transparent',borderLeft:`2px solid ${capAtivo===fi?s.green:'transparent'}`}}
+                    style={{padding:'8px 16px 8px 24px',cursor:'pointer',display:'flex',alignItems:'center',gap:'8px',background:capAtivo===fi?'rgba(34,217,122,.12)':'transparent',borderLeft:`2px solid ${capAtivo===fi?s.green:'transparent'}`}}
                     onMouseEnter={e=>{if(capAtivo!==fi)e.currentTarget.style.background='#111'}}
                     onMouseLeave={e=>{if(capAtivo!==fi)e.currentTarget.style.background='transparent'}}>
-                    <span style={{fontSize:'12px'}}>
-                      {file.name?.endsWith('.pdf')?'📄':file.name?.endsWith('.mp4')?'🎬':file.name?.endsWith('.mp3')?'🎵':'📎'}
+                    <span style={{fontSize:'12px',flexShrink:0}}>
+                      {file.name?.match(/\.pdf$/i)?'📄':file.name?.match(/\.(mp4|webm)$/i)?'🎬':file.name?.match(/\.(mp3|wav)$/i)?'🎵':'📎'}
                     </span>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontSize:'10px',color:capAtivo===fi?s.green:s.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{file.name}</div>
@@ -151,12 +103,57 @@ export default function Ebook() {
               </div>
             ))}
           </div>
+        </div>
 
-          <div style={{padding:'14px 16px',borderTop:`1px solid ${s.border}`}}>
-            <a href={fileAtual?.url} target="_blank" rel="noreferrer"
-              style={{display:'block',width:'100%',background:`linear-gradient(90deg,#15803d,${s.green})`,color:'#000',fontSize:'11px',fontWeight:'700',padding:'10px',borderRadius:'6px',border:'none',cursor:'pointer',letterSpacing:'1px',textTransform:'uppercase',textAlign:'center',textDecoration:'none'}}>
-              ⬇ Baixar arquivo atual
-            </a>
+        {/* VIEWER — ocupa todo o espaço restante */}
+        <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',background:'#111'}}>
+          <div style={{background:'#0d0d0d',borderBottom:`1px solid ${s.border}`,padding:'8px 16px',display:'flex',alignItems:'center',gap:'8px',flexShrink:0}}>
+            <button onClick={()=>{
+              if(capAtivo>0){setCapAtivo(c=>c-1)}
+              else if(modAtivo>0){const newMod=modAtivo-1;setModAtivo(newMod);setCapAtivo((modules[newMod]?.files?.length||1)-1)}
+            }} style={{background:'#1a1a1a',border:`1px solid ${s.border}`,borderRadius:'5px',padding:'5px 12px',fontSize:'10px',color:s.text,cursor:'pointer',fontFamily:'sans-serif'}}>⬅ Anterior</button>
+            <span style={{fontSize:'11px',color:s.muted,flex:1,textAlign:'center'}}>{modAtual.title} · {fileAtual?.name}</span>
+            <button onClick={()=>{
+              if(capAtivo<(modAtual.files?.length||0)-1){setCapAtivo(c=>c+1)}
+              else if(modAtivo<modules.length-1){setModAtivo(m=>m+1);setCapAtivo(0)}
+            }} style={{background:'#1a1a1a',border:`1px solid ${s.border}`,borderRadius:'5px',padding:'5px 12px',fontSize:'10px',color:s.text,cursor:'pointer',fontFamily:'sans-serif'}}>Próximo ➡</button>
+          </div>
+
+          <div style={{flex:1,overflow:'hidden',position:'relative'}}>
+            {fileAtual ? (
+              fileAtual.url?.match(/\.pdf$/i) ? (
+                <iframe
+                  src={fileAtual.url+'#toolbar=1&navpanes=1&scrollbar=1&view=FitH'}
+                  style={{width:'100%',height:'100%',border:'none',display:'block'}}
+                  title={fileAtual.name}
+                />
+              ) : fileAtual.url?.match(/\.(mp4|webm)$/i) ? (
+                <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',padding:'20px'}}>
+                  <video src={fileAtual.url} controls style={{maxWidth:'100%',maxHeight:'100%',borderRadius:'8px'}}/>
+                </div>
+              ) : fileAtual.url?.match(/\.(mp3|wav)$/i) ? (
+                <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:'16px'}}>
+                  <div style={{fontSize:'64px'}}>🎵</div>
+                  <div style={{fontSize:'14px',fontWeight:'600'}}>{fileAtual.name}</div>
+                  <audio src={fileAtual.url} controls style={{width:'80%',maxWidth:'500px'}}/>
+                </div>
+              ) : (
+                <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:'16px'}}>
+                  <div style={{fontSize:'64px'}}>📄</div>
+                  <div style={{fontSize:'16px',fontWeight:'700'}}>{fileAtual.name}</div>
+                  <div style={{fontSize:'12px',color:s.muted}}>{fileAtual.size}</div>
+                  <a href={fileAtual.url} target="_blank" rel="noreferrer"
+                    style={{background:`linear-gradient(90deg,${s.accent},${s.accent2})`,color:'#000',padding:'12px 28px',borderRadius:'8px',textDecoration:'none',fontWeight:'700',fontSize:'13px'}}>
+                    ⬇ Baixar arquivo
+                  </a>
+                </div>
+              )
+            ) : (
+              <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:s.muted,fontSize:'13px',flexDirection:'column',gap:'12px'}}>
+                <div style={{fontSize:'48px'}}>📭</div>
+                Nenhum arquivo neste módulo.
+              </div>
+            )}
           </div>
         </div>
       </div>
