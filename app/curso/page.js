@@ -36,20 +36,27 @@ export default function Curso() {
       user_id: user.id, product_id: productId,
       lesson_id: lessonId, completed: true
     }, {onConflict: 'user_id,product_id,lesson_id'})
-    setConcluidas(prev => [...prev, lessonId])
+    setConcluidas(prev => [...new Set([...prev, lessonId])])
     if (aulaAtiva < todasAulas.length - 1) setAulaAtiva(prev => prev + 1)
   }
 
   const modules = product?.metadata?.modules || []
-  const todasAulas = modules.flatMap((mod, mi) => mod.aulas?.map((aula, ai) => ({...aula, modIndex: mi, aulaIndex: ai, globalIndex: modules.slice(0,mi).flatMap(m=>m.aulas||[]).length + ai})) || [])
+  const todasAulas = modules.flatMap((mod, mi) =>
+    (mod.aulas || []).map((aula, ai) => ({
+      ...aula,
+      modIndex: mi,
+      aulaIndex: ai,
+      globalIndex: modules.slice(0, mi).flatMap(m => m.aulas || []).length + ai
+    }))
+  )
   const aulaAtual = todasAulas[aulaAtiva]
   const lessonId = aulaAtual ? `${aulaAtual.modIndex}-${aulaAtual.aulaIndex}` : null
   const isAtualConcluida = lessonId && concluidas.includes(lessonId)
 
   const embedUrl = aulaAtual?.youtube
     ? aulaAtual.youtube.includes('embed') ? aulaAtual.youtube
-      : aulaAtual.youtube.includes('youtu.be/') ? aulaAtual.youtube.replace('youtu.be/','youtube.com/embed/')
-      : aulaAtual.youtube.includes('watch?v=') ? aulaAtual.youtube.replace('watch?v=','embed/')
+      : aulaAtual.youtube.includes('youtu.be/') ? 'https://www.youtube.com/embed/' + aulaAtual.youtube.split('youtu.be/')[1]
+      : aulaAtual.youtube.includes('watch?v=') ? aulaAtual.youtube.replace('watch?v=', 'embed/')
       : aulaAtual.youtube
     : ''
 
@@ -76,49 +83,57 @@ export default function Curso() {
       </nav>
 
       <div style={{display:'flex',flex:1,overflow:'hidden'}}>
-        <div style={{flex:1,display:'flex',flexDirection:'column',overflowY:'auto',scrollbarWidth:'thin'}}>
-          <div style={{background:'#000',width:'100%',aspectRatio:'16/9',maxHeight:'56vh',position:'relative',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+
+        {/* PLAYER LADO ESQUERDO */}
+        <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+
+          {/* PLAYER — altura generosa como YouTube */}
+          <div style={{background:'#000',width:'100%',position:'relative',flexShrink:0}} >
             {embedUrl ? (
-              <iframe src={embedUrl} style={{width:'100%',height:'100%',border:'none'}} allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"/>
+              <div style={{position:'relative',paddingBottom:'56.25%',height:0}}>
+                <iframe
+                  src={embedUrl}
+                  style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',border:'none'}}
+                  allowFullScreen
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                />
+              </div>
             ) : (
-              <div style={{position:'absolute',inset:0,background:'linear-gradient(160deg,#080808,#151008)',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:'12px'}}>
-                <div style={{width:'68px',height:'68px',borderRadius:'50%',background:'rgba(240,165,0,.18)',border:'2px solid rgba(240,165,0,.5)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'26px'}}>▶</div>
-                <div style={{fontSize:'12px',color:s.muted}}>Vídeo não configurado</div>
+              <div style={{paddingBottom:'56.25%',position:'relative'}}>
+                <div style={{position:'absolute',inset:0,background:'linear-gradient(160deg,#080808,#151008)',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:'12px'}}>
+                  <div style={{width:'68px',height:'68px',borderRadius:'50%',background:'rgba(240,165,0,.18)',border:'2px solid rgba(240,165,0,.5)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'26px'}}>▶</div>
+                  <div style={{fontSize:'12px',color:s.muted}}>Vídeo não configurado</div>
+                </div>
               </div>
             )}
-            <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'14px 18px 12px',background:'linear-gradient(0deg,rgba(0,0,0,.95),transparent)'}}>
-              <div style={{fontSize:'13px',fontWeight:'600'}}>{aulaAtual?.title}</div>
-              <div style={{fontSize:'10px',color:'#888',marginTop:'2px'}}>{modules[aulaAtual?.modIndex]?.title} · {aulaAtual?.duration}</div>
-              <div style={{height:'3px',background:'#333',borderRadius:'2px',marginTop:'10px'}}>
-                <div style={{height:'100%',width:`${todasAulas.length>0?(aulaAtiva/todasAulas.length)*100:0}%`,background:`linear-gradient(90deg,${s.accent},${s.accent2})`,borderRadius:'2px'}}></div>
-              </div>
-            </div>
           </div>
 
-          <div style={{background:'#0d0d0d',borderBottom:`1px solid ${s.border}`,padding:'9px 18px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+          {/* CONTROLES */}
+          <div style={{background:'#0d0d0d',borderBottom:`1px solid ${s.border}`,padding:'10px 18px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
             <div style={{display:'flex',gap:'8px'}}>
-              <button onClick={()=>setAulaAtiva(Math.max(0,aulaAtiva-1))} style={{background:'#1a1a1a',border:`1px solid ${s.border}`,borderRadius:'6px',padding:'6px 13px',fontSize:'10px',color:s.text,cursor:'pointer',fontFamily:'sans-serif'}}>⬅ Anterior</button>
-              <button onClick={marcarConcluida} style={{background:isAtualConcluida?'rgba(34,217,122,.2)':`linear-gradient(90deg,${s.accent},${s.accent2})`,color:isAtualConcluida?s.green:'#000',border:isAtualConcluida?`1px solid ${s.green}44`:'none',borderRadius:'6px',padding:'6px 13px',fontSize:'10px',fontWeight:'700',cursor:'pointer'}}>
+              <button onClick={()=>setAulaAtiva(Math.max(0,aulaAtiva-1))} style={{background:'#1a1a1a',border:`1px solid ${s.border}`,borderRadius:'6px',padding:'7px 14px',fontSize:'10px',color:s.text,cursor:'pointer',fontFamily:'sans-serif'}}>⬅ Anterior</button>
+              <button onClick={marcarConcluida} style={{background:isAtualConcluida?'rgba(34,217,122,.2)':`linear-gradient(90deg,${s.accent},${s.accent2})`,color:isAtualConcluida?s.green:'#000',border:isAtualConcluida?`1px solid ${s.green}44`:'none',borderRadius:'6px',padding:'7px 14px',fontSize:'10px',fontWeight:'700',cursor:'pointer'}}>
                 {isAtualConcluida?'✓ Concluída':'✓ Marcar concluída'}
               </button>
-              <button onClick={()=>setAulaAtiva(Math.min(todasAulas.length-1,aulaAtiva+1))} style={{background:'#1a1a1a',border:`1px solid ${s.border}`,borderRadius:'6px',padding:'6px 13px',fontSize:'10px',color:s.text,cursor:'pointer',fontFamily:'sans-serif'}}>Próxima ➡</button>
+              <button onClick={()=>setAulaAtiva(Math.min(todasAulas.length-1,aulaAtiva+1))} style={{background:'#1a1a1a',border:`1px solid ${s.border}`,borderRadius:'6px',padding:'7px 14px',fontSize:'10px',color:s.text,cursor:'pointer',fontFamily:'sans-serif'}}>Próxima ➡</button>
             </div>
-            <select style={{background:'#1a1a1a',border:`1px solid ${s.border}`,borderRadius:'6px',padding:'5px 9px',fontSize:'10px',color:s.text,fontFamily:'sans-serif',outline:'none'}}>
+            <select style={{background:'#1a1a1a',border:`1px solid ${s.border}`,borderRadius:'6px',padding:'6px 10px',fontSize:'10px',color:s.text,fontFamily:'sans-serif',outline:'none'}}>
               <option>0.75x</option><option>1x</option><option>1.25x</option><option>1.5x</option><option>2x</option>
             </select>
           </div>
 
+          {/* TABS + CONTEÚDO */}
           <div style={{display:'flex',borderBottom:`1px solid ${s.border}`,padding:'0 18px',flexShrink:0}}>
             {[['sobre','Sobre a aula'],['materiais','Materiais'],['comentarios','Comentários']].map(([id,label])=>(
-              <div key={id} onClick={()=>setTab(id)} style={{padding:'11px 14px',fontSize:'11px',cursor:'pointer',borderBottom:`2px solid ${tab===id?s.accent:'transparent'}`,color:tab===id?s.accent:s.muted,transition:'all .15s'}}>{label}</div>
+              <div key={id} onClick={()=>setTab(id)} style={{padding:'10px 14px',fontSize:'11px',cursor:'pointer',borderBottom:`2px solid ${tab===id?s.accent:'transparent'}`,color:tab===id?s.accent:s.muted,transition:'all .15s'}}>{label}</div>
             ))}
           </div>
 
-          <div style={{padding:'20px',flex:1}}>
+          <div style={{padding:'20px',overflowY:'auto',flex:1,scrollbarWidth:'thin'}}>
             {tab==='sobre' && (
               <div>
-                <div style={{fontSize:'18px',fontWeight:'700',marginBottom:'8px'}}>{aulaAtual?.title}</div>
-                <p style={{fontSize:'12px',color:'#888',lineHeight:1.7}}>{modules[aulaAtual?.modIndex]?.title} · {aulaAtual?.duration}</p>
+                <div style={{fontSize:'18px',fontWeight:'700',marginBottom:'6px'}}>{aulaAtual?.title}</div>
+                <div style={{fontSize:'12px',color:s.muted}}>{modules[aulaAtual?.modIndex]?.title}{aulaAtual?.duration?' · '+aulaAtual.duration:''}</div>
               </div>
             )}
             {tab==='materiais' && (
@@ -146,6 +161,7 @@ export default function Curso() {
           </div>
         </div>
 
+        {/* SIDEBAR MÓDULOS — DIREITA */}
         <div style={{width:'310px',background:'#0d0d0d',borderLeft:`1px solid ${s.border}`,display:'flex',flexDirection:'column',flexShrink:0,overflow:'hidden'}}>
           <div style={{padding:'14px 16px',borderBottom:`1px solid ${s.border}`}}>
             <div style={{fontSize:'11px',fontWeight:'700',letterSpacing:'1px',textTransform:'uppercase'}}>Conteúdo do Curso</div>
@@ -177,7 +193,7 @@ export default function Curso() {
                 </div>
                 {modAberto===mi && (
                   <div>
-                    {mod.aulas?.map((aula,ai)=>{
+                    {(mod.aulas||[]).map((aula,ai)=>{
                       const gIndex = modules.slice(0,mi).flatMap(m=>m.aulas||[]).length + ai
                       const isActive = aulaAtiva===gIndex
                       const isDone = concluidas.includes(`${mi}-${ai}`)
