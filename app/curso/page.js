@@ -10,6 +10,8 @@ export default function Curso() {
   const [modAberto, setModAberto] = useState(0)
   const [tab, setTab] = useState('sobre')
   const [concluidas, setConcluidas] = useState([])
+  const [comentario, setComentario] = useState('')
+  const [comentarios, setComentarios] = useState([])
   const router = useRouter()
 
   useEffect(() => {
@@ -31,7 +33,7 @@ export default function Curso() {
   async function marcarConcluida() {
     const supabase = createClient()
     const productId = localStorage.getItem('curso_product_id')
-    const lessonId = `${modAberto}-${aulaAtiva}`
+    const lessonId = `${aulaAtual?.modIndex}-${aulaAtual?.aulaIndex}`
     await supabase.from('progress').upsert({
       user_id: user.id, product_id: productId,
       lesson_id: lessonId, completed: true
@@ -43,9 +45,7 @@ export default function Curso() {
   const modules = product?.metadata?.modules || []
   const todasAulas = modules.flatMap((mod, mi) =>
     (mod.aulas || []).map((aula, ai) => ({
-      ...aula,
-      modIndex: mi,
-      aulaIndex: ai,
+      ...aula, modIndex: mi, aulaIndex: ai,
       globalIndex: modules.slice(0, mi).flatMap(m => m.aulas || []).length + ai
     }))
   )
@@ -70,7 +70,7 @@ export default function Curso() {
 
   return (
     <div style={{height:'100vh',background:s.bg,fontFamily:'sans-serif',color:s.text,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <nav style={{background:s.nav,borderBottom:`1px solid ${s.border}`,padding:'0 20px',height:'50px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+      <nav style={{background:s.nav,borderBottom:`1px solid ${s.border}`,padding:'0 20px',height:'50px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0,zIndex:10}}>
         <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
           <div onClick={()=>router.push('/dashboard')} style={{display:'flex',alignItems:'center',gap:'7px',fontSize:'11px',color:s.muted,cursor:'pointer'}}>
             <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 12H5m7-7-7 7 7 7"/></svg>Voltar
@@ -84,19 +84,14 @@ export default function Curso() {
 
       <div style={{display:'flex',flex:1,overflow:'hidden'}}>
 
-        {/* PLAYER LADO ESQUERDO */}
-        <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+        {/* ESQUERDA — player + scroll */}
+        <div style={{flex:1,display:'flex',flexDirection:'column',overflowY:'auto',scrollbarWidth:'thin',scrollbarColor:'#222 transparent'}}>
 
-          {/* PLAYER — altura generosa como YouTube */}
-          <div style={{background:'#000',width:'100%',position:'relative',flexShrink:0}} >
+          {/* PLAYER 16:9 */}
+          <div style={{background:'#000',width:'100%',flexShrink:0}}>
             {embedUrl ? (
               <div style={{position:'relative',paddingBottom:'56.25%',height:0}}>
-                <iframe
-                  src={embedUrl}
-                  style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',border:'none'}}
-                  allowFullScreen
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                />
+                <iframe src={embedUrl} style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',border:'none'}} allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"/>
               </div>
             ) : (
               <div style={{paddingBottom:'56.25%',position:'relative'}}>
@@ -122,14 +117,15 @@ export default function Curso() {
             </select>
           </div>
 
-          {/* TABS + CONTEÚDO */}
+          {/* TABS */}
           <div style={{display:'flex',borderBottom:`1px solid ${s.border}`,padding:'0 18px',flexShrink:0}}>
             {[['sobre','Sobre a aula'],['materiais','Materiais'],['comentarios','Comentários']].map(([id,label])=>(
               <div key={id} onClick={()=>setTab(id)} style={{padding:'10px 14px',fontSize:'11px',cursor:'pointer',borderBottom:`2px solid ${tab===id?s.accent:'transparent'}`,color:tab===id?s.accent:s.muted,transition:'all .15s'}}>{label}</div>
             ))}
           </div>
 
-          <div style={{padding:'20px',overflowY:'auto',flex:1,scrollbarWidth:'thin'}}>
+          {/* CONTEÚDO DAS TABS — com scroll */}
+          <div style={{padding:'20px',minHeight:'200px'}}>
             {tab==='sobre' && (
               <div>
                 <div style={{fontSize:'18px',fontWeight:'700',marginBottom:'6px'}}>{aulaAtual?.title}</div>
@@ -140,28 +136,65 @@ export default function Curso() {
               <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
                 {aulaAtual?.files?.length > 0 ? aulaAtual.files.map((file,i)=>(
                   <a key={i} href={file.url} target="_blank" rel="noreferrer"
-                    style={{background:'#111',border:`1px solid ${s.border}`,borderRadius:'8px',padding:'10px 14px',display:'flex',alignItems:'center',gap:'12px',cursor:'pointer',textDecoration:'none',transition:'border-color .15s'}}
+                    style={{background:'#111',border:`1px solid ${s.border}`,borderRadius:'8px',padding:'12px 16px',display:'flex',alignItems:'center',gap:'12px',cursor:'pointer',textDecoration:'none',transition:'border-color .15s'}}
                     onMouseEnter={e=>e.currentTarget.style.borderColor='#333'}
                     onMouseLeave={e=>e.currentTarget.style.borderColor=s.border}>
-                    <div style={{width:'32px',height:'32px',borderRadius:'6px',background:'rgba(240,165,0,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'15px',flexShrink:0}}>📄</div>
+                    <div style={{width:'36px',height:'36px',borderRadius:'8px',background:'rgba(240,165,0,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',flexShrink:0}}>📄</div>
                     <div style={{flex:1}}>
-                      <div style={{fontSize:'11px',fontWeight:'600',color:s.text}}>{file.name}</div>
-                      <div style={{fontSize:'9px',color:s.muted,marginTop:'2px'}}>{file.size}</div>
+                      <div style={{fontSize:'12px',fontWeight:'600',color:s.text}}>{file.name}</div>
+                      <div style={{fontSize:'10px',color:s.muted,marginTop:'2px'}}>{file.size}</div>
                     </div>
-                    <div style={{fontSize:'10px',color:s.accent,fontWeight:'700'}}>⬇ Baixar</div>
+                    <div style={{fontSize:'11px',color:s.accent,fontWeight:'700'}}>⬇ Baixar</div>
                   </a>
                 )) : (
-                  <div style={{textAlign:'center',padding:'40px',color:s.muted,fontSize:'12px'}}>Nenhum material para esta aula.</div>
+                  <div style={{textAlign:'center',padding:'40px',color:s.muted,fontSize:'12px',background:'#111',borderRadius:'10px',border:`1px solid ${s.border}`}}>
+                    Nenhum material para esta aula.
+                  </div>
                 )}
               </div>
             )}
             {tab==='comentarios' && (
-              <div style={{textAlign:'center',padding:'40px',color:s.muted,fontSize:'12px'}}>💬 Comentários em breve</div>
+              <div>
+                <div style={{marginBottom:'16px'}}>
+                  <textarea
+                    value={comentario}
+                    onChange={e=>setComentario(e.target.value)}
+                    placeholder="Deixe seu comentário ou dúvida sobre esta aula..."
+                    rows={3}
+                    style={{width:'100%',background:'#111',border:`1px solid ${s.border}`,borderRadius:'8px',padding:'12px',fontSize:'12px',color:s.text,outline:'none',fontFamily:'sans-serif',resize:'none'}}
+                  />
+                  <button
+                    onClick={()=>{
+                      if(!comentario.trim()) return
+                      setComentarios(prev=>[{text:comentario,user:user?.email,time:new Date().toLocaleString('pt-BR')},...prev])
+                      setComentario('')
+                    }}
+                    style={{marginTop:'8px',background:`linear-gradient(90deg,${s.accent},${s.accent2})`,color:'#000',border:'none',borderRadius:'6px',padding:'8px 20px',fontSize:'11px',fontWeight:'700',cursor:'pointer'}}>
+                    Enviar comentário
+                  </button>
+                </div>
+                {comentarios.length > 0 ? comentarios.map((c,i)=>(
+                  <div key={i} style={{background:'#111',border:`1px solid ${s.border}`,borderRadius:'8px',padding:'12px 16px',marginBottom:'8px'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px'}}>
+                      <div style={{width:'28px',height:'28px',borderRadius:'50%',background:`linear-gradient(135deg,${s.accent},${s.accent2})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:'700',color:'#000'}}>{c.user?.charAt(0).toUpperCase()}</div>
+                      <div>
+                        <div style={{fontSize:'11px',fontWeight:'600'}}>{c.user}</div>
+                        <div style={{fontSize:'9px',color:s.muted}}>{c.time}</div>
+                      </div>
+                    </div>
+                    <div style={{fontSize:'12px',lineHeight:1.6}}>{c.text}</div>
+                  </div>
+                )) : (
+                  <div style={{textAlign:'center',padding:'40px',color:s.muted,fontSize:'12px',background:'#111',borderRadius:'10px',border:`1px solid ${s.border}`}}>
+                    Nenhum comentário ainda. Seja o primeiro!
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
 
-        {/* SIDEBAR MÓDULOS — DIREITA */}
+        {/* SIDEBAR MÓDULOS DIREITA */}
         <div style={{width:'310px',background:'#0d0d0d',borderLeft:`1px solid ${s.border}`,display:'flex',flexDirection:'column',flexShrink:0,overflow:'hidden'}}>
           <div style={{padding:'14px 16px',borderBottom:`1px solid ${s.border}`}}>
             <div style={{fontSize:'11px',fontWeight:'700',letterSpacing:'1px',textTransform:'uppercase'}}>Conteúdo do Curso</div>
