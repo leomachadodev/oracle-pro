@@ -1,8 +1,10 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '../../../lib/supabase'
+import { use } from 'react'
 
 export default function EntregaPage({ params }) {
+  const { token } = use(params)
   const [config, setConfig] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -12,13 +14,13 @@ export default function EntregaPage({ params }) {
       const { data } = await supabase
         .from('whitelabel_configs')
         .select('*, products(name, access_url, metadata)')
-        .eq('delivery_token', params.token)
+        .eq('delivery_token', token)
         .single()
       setConfig(data)
       setLoading(false)
     }
     load()
-  }, [])
+  }, [token])
 
   if (loading) return (
     <div style={{minHeight:'100vh',background:'#0a0a0a',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'sans-serif'}}>
