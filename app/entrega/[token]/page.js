@@ -1,4 +1,3 @@
-cat > "app/entrega/[token]/page.js" << 'ENDOFFILE'
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '../../../lib/supabase'
@@ -68,12 +67,12 @@ export default function EntregaPage({ params }) {
         {config.products?.access_url && (
           <a href={config.products.access_url} target="_blank" rel="noreferrer"
             style={{display:'block',width:'100%',background:'linear-gradient(90deg,#f0a500,#e05500)',color:'#000',borderRadius:'10px',padding:'16px',textAlign:'center',fontSize:'14px',fontWeight:'700',textDecoration:'none',letterSpacing:'1px',textTransform:'uppercase',marginBottom:'24px'}}>
-            Acessar o Sistema
+            🚀 Acessar o Sistema
           </a>
         )}
         {modules.length > 0 && (
           <div style={{background:'#111',border:'1px solid #1e1e1e',borderRadius:'12px',padding:'24px',marginBottom:'20px'}}>
-            <div style={{fontSize:'14px',fontWeight:'700',marginBottom:'16px'}}>Documentação e Materiais</div>
+            <div style={{fontSize:'14px',fontWeight:'700',marginBottom:'16px'}}>📋 Documentação e Materiais</div>
             {modules.map((mod,mi)=>(
               <div key={mi} style={{marginBottom:'12px'}}>
                 <div style={{fontSize:'11px',fontWeight:'700',color:'#f0a500',marginBottom:'8px',textTransform:'uppercase'}}>{mod.title}</div>
@@ -85,7 +84,7 @@ export default function EntregaPage({ params }) {
                       <div style={{fontSize:'12px',fontWeight:'600',color:'#e8e8e8'}}>{file.name}</div>
                       <div style={{fontSize:'10px',color:'#555'}}>{file.size}</div>
                     </div>
-                    <div style={{fontSize:'11px',color:'#f0a500',fontWeight:'700'}}>Baixar</div>
+                    <div style={{fontSize:'11px',color:'#f0a500',fontWeight:'700'}}>⬇ Baixar</div>
                   </a>
                 ))}
               </div>
@@ -93,10 +92,9 @@ export default function EntregaPage({ params }) {
           </div>
         )}
         <div style={{textAlign:'center',fontSize:'10px',color:'#333',marginTop:'32px'}}>
-          Entrega segura · {config.business_name||'Oracle Pro'} · {new Date().getFullYear()}
+          🔒 Entrega segura · {config.business_name||'Oracle Pro'} · {new Date().getFullYear()}
         </div>
       </div>
     </div>
   )
 }
-ENDOFFILE
